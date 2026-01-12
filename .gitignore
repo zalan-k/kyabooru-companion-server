@@ -1,0 +1,4 @@
+node_modules/
+tag_saver.db
+tag_saver.db-shm
+tag_saver.db-wal

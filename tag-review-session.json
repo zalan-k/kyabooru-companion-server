@@ -1,0 +1,5385 @@
+{
+  "decisions": {
+    "naming": {
+      "virtualyoutuber": {
+        "canonical": "meta:virtual youtuber",
+        "variants": [
+          "meta:virtual youtuber",
+          "general:virtual youtuber",
+          "general:virtualyoutuber",
+          "meta:vtuber",
+          "general:vtuber",
+          "meta:vtuberfanart",
+          "meta:latam virtual youtuber"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "highres": {
+        "canonical": "meta:highres",
+        "variants": [
+          "meta:highres",
+          "meta:high res"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "phaseconnect": {
+        "canonical": "copyright:phase connect",
+        "variants": [
+          "copyright:phase connect",
+          "general:phase-connect",
+          "general:phaseconnect",
+          "meta:phaseconnect",
+          "copyright:phase-connect"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "absurdres": {
+        "canonical": "meta:absurdres",
+        "variants": [
+          "meta:absurdres",
+          "meta:absurd res"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "blueeyes": {
+        "canonical": "general:blue eyes",
+        "variants": [
+          "general:blue eyes",
+          "general:blue_eyes"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "lightskinnedfemale": {
+        "canonical": "general:light-skinned female",
+        "variants": [
+          "general:light-skinned female",
+          "general:light skinned female"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "whitehair": {
+        "canonical": "general:white hair",
+        "variants": [
+          "general:white hair",
+          "general:white_hair"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "thighhighs": {
+        "canonical": "general:thighhighs",
+        "variants": [
+          "general:thighhighs",
+          "general:thigh highs"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tagme": {
+        "canonical": "meta:tagme",
+        "variants": [
+          "meta:tagme",
+          "meta:tagme (artist)",
+          "meta:tagme (character)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twintails": {
+        "canonical": "general:twintails",
+        "variants": [
+          "general:twintails",
+          "general:twintails (hairstyle)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twotonehair": {
+        "canonical": "general:two-tone hair",
+        "variants": [
+          "general:two-tone hair",
+          "general:two tone hair"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "darkskin": {
+        "canonical": "general:dark skin",
+        "variants": [
+          "general:dark skin",
+          "general:darkskin"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tenmamaemi": {
+        "canonical": "character:tenma maemi",
+        "variants": [
+          "character:tenma maemi",
+          "general:tenma maemi",
+          "character:tenma maemi (1st costume)",
+          "general:tenmamaemi",
+          "character:tenma maemi (2nd costume)",
+          "general:tenma maemi (3rd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ninomaeina'nis": {
+        "canonical": "character:ninomae ina'nis",
+        "variants": [
+          "character:ninomae ina'nis",
+          "character:ninomae ina'nis (loungewear)",
+          "character:ninomae ina'nis (school uniform)",
+          "general:ninomae ina'nis (5th costume)",
+          "character:ninomae ina'nis (1st costume)",
+          "general:ninomae ina'nis",
+          "general:ninomae ina'nis (pastry chef)",
+          "character:ninomae ina'nis (new year)",
+          "character:ninomae_ina'nis"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "pipkinpippa": {
+        "canonical": "character:pipkin pippa",
+        "variants": [
+          "character:pipkin pippa",
+          "character:pipkin pippa (1st costume)",
+          "general:pipkin pippa",
+          "general:pipkin_pippa",
+          "general:pipkinpippa",
+          "character:pipkin pippa (shipkin shippa)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hairclip": {
+        "canonical": "general:hairclip",
+        "variants": [
+          "general:hairclip",
+          "general:hair clip"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "aftersex": {
+        "canonical": "general:after sex",
+        "variants": [
+          "general:after sex",
+          "general:aftersex"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dokibird": {
+        "canonical": "character:dokibird",
+        "variants": [
+          "character:dokibird",
+          "character:dokibird (vtuber)",
+          "character:dokibird (bounty hunter)",
+          "character:dokibird (vtuber) (bounty hunter)",
+          "general:dokibird (vtuber) (summer)",
+          "character:dokibird (vtuber) (retro doki)",
+          "general:dokibird (summer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cumdrip": {
+        "canonical": "general:cumdrip",
+        "variants": [
+          "general:cumdrip",
+          "general:cum drip"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hoshimachisuisei": {
+        "canonical": "character:hoshimachi suisei",
+        "variants": [
+          "character:hoshimachi suisei",
+          "character:hoshimachi suisei (1st costume)",
+          "general:hoshimachi suisei (casual)",
+          "general:hoshimachi suisei (sailor)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hakosbaelz": {
+        "canonical": "character:hakos baelz",
+        "variants": [
+          "character:hakos baelz",
+          "character:hakos baelz (1st costume)",
+          "general:hakos baelz (steel rose)",
+          "character:hakos baelz (dakimakura outfit)",
+          "character:hakos baelz (3rd costume)",
+          "character:hakos baelz (4th costume)",
+          "general:hakos baelz (strawberry onesie)",
+          "general:hakos baelz (holonatsu paradise)",
+          "character:hakos baelz (5th costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "outis": {
+        "canonical": "character:outis (limbus company)",
+        "variants": [
+          "character:outis (limbus company)",
+          "character:outis (project moon)",
+          "general:outis"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "oneeyeclosed": {
+        "canonical": "general:one eye closed",
+        "variants": [
+          "general:one eye closed",
+          "general:one-eye closed"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "swimsuit": {
+        "canonical": "general:swimsuit",
+        "variants": [
+          "general:swimsuit",
+          "general:swim_suit"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sextoy": {
+        "canonical": "general:sex toy",
+        "variants": [
+          "general:sex toy",
+          "general:sextoy"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bellybutton": {
+        "canonical": "general:belly button",
+        "variants": [
+          "general:belly button",
+          "general:bellybutton"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hairbow": {
+        "canonical": "general:hair bow",
+        "variants": [
+          "general:hair bow",
+          "general:hairbow"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "irys": {
+        "canonical": "character:irys",
+        "variants": [
+          "character:irys (hololive)",
+          "character:irys",
+          "character:irys (irys 2.0) (hololive)",
+          "general:irys (casualrys) (hololive)",
+          "general:irys (maid) (hololive)",
+          "character:irys (casualrys) (hololive)",
+          "character:irys (holonatsu paradise) (hololive)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tokoyamitowa": {
+        "canonical": "character:tokoyami towa",
+        "variants": [
+          "character:tokoyami towa",
+          "character:tokoyami towa (1st costume)",
+          "character:tokoyami towa (jirai kei)",
+          "character:tokoyami towa (5th costume)",
+          "character:tokoyami towa (cyberpunk)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "star": {
+        "canonical": "general:star (symbol)",
+        "variants": [
+          "general:star (symbol)",
+          "general:star (sky)",
+          "general:star"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dizzydokuro": {
+        "canonical": "character:dizzy dokuro",
+        "variants": [
+          "character:dizzy dokuro",
+          "general:dizzydokuro",
+          "character:dizzy dokuro (nurse)",
+          "character:dizzy dokuro (haunted nurse)",
+          "character:dizzy dokuro (2nd costume)",
+          "character:dizzy_dokuro",
+          "character:dizzy dokuro (haunted nurse alt.)",
+          "character:dizzydokuro",
+          "character:dizzy dokuro (project wish)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "doggystyle": {
+        "canonical": "general:doggy style",
+        "variants": [
+          "general:doggy style",
+          "general:doggystyle"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ahegao": {
+        "canonical": "general:ahe gao",
+        "variants": [
+          "general:ahe gao",
+          "general:ahegao",
+          "copyright:ahe gao"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "phaseorigins": {
+        "canonical": "copyright:phase_origins",
+        "variants": [
+          "copyright:phase origins",
+          "copyright:phaseorigins"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ourokronii": {
+        "canonical": "character:ouro kronii",
+        "variants": [
+          "character:ouro kronii",
+          "character:ouro kronii (maid)",
+          "character:ouro kronii (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "foxgirl": {
+        "canonical": "general:fox girl",
+        "variants": [
+          "general:fox girl",
+          "general:foxgirl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ryoshu": {
+        "canonical": "character:ryoshu (limbus company)",
+        "variants": [
+          "character:ryoshu (limbus company)",
+          "character:ryoshu (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "blackthighhighs": {
+        "canonical": "general:black thighhighs",
+        "variants": [
+          "general:black thighhighs",
+          "general:black thigh highs"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "foxyrain": {
+        "canonical": "artist:foxyrain (foxyreine)",
+        "variants": [
+          "artist:foxyrain (foxyreine)",
+          "artist:foxy rain (foxyreine)",
+          "general:foxyrain"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kureijiollie": {
+        "canonical": "character:kureiji ollie",
+        "variants": [
+          "character:kureiji ollie",
+          "general:kureijiollie",
+          "general:kureiji ollie (indonesian dress)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kanekolumi": {
+        "canonical": "character:kaneko lumi",
+        "variants": [
+          "character:kaneko lumi",
+          "character:kaneko_lumi",
+          "character:kaneko lumi (3rd costume)",
+          "general:kaneko lumi (cosplay)",
+          "character:kaneko lumi (project wish)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "amanogawashiina": {
+        "canonical": "character:amanogawa shiina",
+        "variants": [
+          "character:amanogawa shiina",
+          "character:amanogawa shiina (2nd costume)",
+          "general:amanogawashiina",
+          "general:amanogawa shiina (cosplay)",
+          "general:amanogawa shiina (crab)",
+          "artist:amanogawa shiina"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "headwings": {
+        "canonical": "general:head wings",
+        "variants": [
+          "general:head wings",
+          "general:headwings"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "clioaite": {
+        "canonical": "character:clio aite",
+        "variants": [
+          "character:clio aite",
+          "character:clio aite (clio 2.0)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "catgirl": {
+        "canonical": "general:cat girl",
+        "variants": [
+          "general:cat girl",
+          "general:catgirl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "muumuyu": {
+        "canonical": "character:muu muyu",
+        "variants": [
+          "character:muu muyu",
+          "general:muu muyu",
+          "general:muu_muyu",
+          "general:muumuyu"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "honkai": {
+        "canonical": "copyright:honkai_(series)",
+        "variants": [
+          "copyright:honkai",
+          "copyright:honkai (series)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kosekibijou": {
+        "canonical": "character:koseki bijou",
+        "variants": [
+          "character:koseki bijou",
+          "character:koseki bijou (casual)",
+          "general:koseki bijou (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bandaid": {
+        "canonical": "general:bandaid",
+        "variants": [
+          "general:bandaid",
+          "general:band-aid"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "himemiyarie": {
+        "canonical": "character:himemiya rie",
+        "variants": [
+          "character:himemiya rie",
+          "character:himemiya rie (1st costume)",
+          "general:himemiya rie"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "komachipanko": {
+        "canonical": "character:komachi panko",
+        "variants": [
+          "character:komachi panko",
+          "character:komachi panko (1st costume)",
+          "general:komachi panko",
+          "general:komachipanko",
+          "general:komachi panko (beeko)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "gawrgura": {
+        "canonical": "character:gawr gura",
+        "variants": [
+          "character:gawr gura",
+          "character:gawr gura (1st costume)",
+          "character:gawr gura (school uniform)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "missionary": {
+        "canonical": "general:missionary",
+        "variants": [
+          "general:missionary",
+          "general:missionary (legs up)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "xanaduavici": {
+        "canonical": "artist:xanadu avici",
+        "variants": [
+          "artist:xanadu avici",
+          "artist:xanaduavici"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "moricalliope": {
+        "canonical": "character:mori calliope",
+        "variants": [
+          "character:mori calliope",
+          "general:mori calliope (holonatsu paradise)",
+          "character:mori calliope (1st costume)",
+          "general:mori calliope (rock bunny)",
+          "general:mori calliope (party dress)",
+          "character:mori calliope (streetwear)",
+          "character:mori calliope (sleepwear)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mintfantome": {
+        "canonical": "character:mint fantome",
+        "variants": [
+          "character:mint fantome",
+          "general:mint fantome (otaku)",
+          "character:mint fantome (minto 2.0)",
+          "character:mint fantome (otaku)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "jellyhoshiumi": {
+        "canonical": "character:jelly hoshiumi",
+        "variants": [
+          "character:jelly hoshiumi",
+          "character:jelly hoshiumi (2nd costume)",
+          "character:jelly hoshiumi (comfy)",
+          "general:jellyhoshiumi"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "steam": {
+        "canonical": "general:steam",
+        "variants": [
+          "general:steam",
+          "copyright:steam (software)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cameltoe": {
+        "canonical": "general:cameltoe",
+        "variants": [
+          "general:cameltoe",
+          "general:camel toe"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "idolen": {
+        "canonical": "copyright:idol-en",
+        "variants": [
+          "copyright:idol-en",
+          "general:idolen"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "artselmetti": {
+        "canonical": "artist:artselmetti_(lewdselmetti)",
+        "variants": [
+          "artist:artselmetti",
+          "artist:artselmetti (lewdselmetti)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "gigimurin": {
+        "canonical": "character:gigi murin",
+        "variants": [
+          "character:gigi murin",
+          "general:gigi murin (new year)",
+          "general:gigimurin",
+          "general:gigi murin (holonatsu paradise)",
+          "character:gigi_murin"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cowprint": {
+        "canonical": "general:cow print",
+        "variants": [
+          "general:cow print",
+          "general:cowprint"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "elirapendora": {
+        "canonical": "character:elira pendora",
+        "variants": [
+          "character:elira pendora",
+          "character:elira pendora (2nd costume)",
+          "character:elira pendora (3rd costume)",
+          "character:elira pendora (1st costume)",
+          "character:elira pendora (4th costume)",
+          "general:elira pendora (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "nanashimumei": {
+        "canonical": "character:nanashi mumei",
+        "variants": [
+          "character:nanashi mumei",
+          "character:nanashi mumei (emo)",
+          "character:nanashi mumei (3rd costume)",
+          "character:nanashi_mumei"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "digitalmedia": {
+        "canonical": "meta:digital_media_(artwork)",
+        "variants": [
+          "meta:digital media (artwork)",
+          "meta:digital media"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rinkouashelia": {
+        "canonical": "character:rinkou ashelia",
+        "variants": [
+          "character:rinkou ashelia",
+          "general:rinkou ashelia",
+          "character:rinkou ashelia (lia 1.0)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "whitethighhighs": {
+        "canonical": "general:white thighhighs",
+        "variants": [
+          "general:white thighhighs",
+          "general:white thigh highs"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "exusiai": {
+        "canonical": "character:exusiai (arknights)",
+        "variants": [
+          "character:exusiai (arknights)",
+          "general:exusiai (midnight delivery) (arknights)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sunsetskyline": {
+        "canonical": "artist:sunsetskyline",
+        "variants": [
+          "artist:sunsetskyline",
+          "artist:sunset skyline"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sideboob": {
+        "canonical": "general:sideboob",
+        "variants": [
+          "general:sideboob",
+          "general:side boob"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "michimochievee": {
+        "canonical": "character:michi mochievee",
+        "variants": [
+          "character:michi mochievee",
+          "character:michi_mochievee"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "selentatsuki": {
+        "canonical": "character:selen tatsuki",
+        "variants": [
+          "character:selen tatsuki",
+          "character:selen tatsuki (2nd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "digitaldrawing": {
+        "canonical": "meta:digital drawing (artwork)",
+        "variants": [
+          "meta:digital drawing (artwork)",
+          "meta:digital drawing"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "neru": {
+        "canonical": "character:neru (blue archive)",
+        "variants": [
+          "character:neru (blue archive)",
+          "character:neru (school uniform) (blue archive)",
+          "character:neru (bunny) (blue archive)",
+          "character:neru (swimsuit) (blue archive)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "chisakaairi": {
+        "canonical": "character:chisaka airi",
+        "variants": [
+          "character:chisaka airi",
+          "general:chisakaairi",
+          "character:chisaka airi (pto outfit)",
+          "character:chisakaairi"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ennaalouette": {
+        "canonical": "character:enna alouette",
+        "variants": [
+          "character:enna alouette",
+          "general:enna alouette (maid)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "finanaryugu": {
+        "canonical": "character:finana ryugu",
+        "variants": [
+          "character:finana ryugu",
+          "character:finana ryugu (2nd costume)",
+          "general:finana ryugu (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bodywriting": {
+        "canonical": "general:body writing",
+        "variants": [
+          "general:body writing",
+          "general:bodywriting"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "la+darknesss": {
+        "canonical": "character:la+ darknesss",
+        "variants": [
+          "character:la+ darknesss",
+          "character:la+ darknesss (4th costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tiltshift": {
+        "canonical": "artist:tilt-shift (azalanz)",
+        "variants": [
+          "artist:tilt-shift (azalanz)",
+          "artist:tilt-shift",
+          "artist:tilt-shift_(azalanz)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "doublepenetration": {
+        "canonical": "general:double penetration",
+        "variants": [
+          "general:double penetration",
+          "general:double_penetration"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "melody": {
+        "canonical": "character:projektmelody",
+        "variants": [
+          "character:melody (projektmelody)",
+          "character:melody (projektmelody) (mall goth)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "erinamakina": {
+        "canonical": "character:erina makina",
+        "variants": [
+          "character:erina makina",
+          "general:erina makina",
+          "character:erina_makina",
+          "general:erinamakina"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "angekatrina": {
+        "canonical": "character:ange katrina",
+        "variants": [
+          "character:ange katrina",
+          "character:ange katrina (7th costume)",
+          "character:ange katrina (1st costume)",
+          "character:ange katrina (6th costume)",
+          "character:ange katrina (5th costume)",
+          "character:ange katrina (2nd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "eimiisami": {
+        "canonical": "character:eimi isami",
+        "variants": [
+          "character:eimi isami",
+          "general:eimiisami"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kobokanaeru": {
+        "canonical": "character:kobo kanaeru",
+        "variants": [
+          "character:kobo kanaeru",
+          "general:kobo kanaeru (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shiorinovella": {
+        "canonical": "character:shiori novella",
+        "variants": [
+          "character:shiori novella",
+          "character:shiori novella (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "amanekanata": {
+        "canonical": "character:amane kanata",
+        "variants": [
+          "character:amane kanata",
+          "general:amane kanata (work)",
+          "character:amane kanata (cutesy punk)",
+          "general:amane kanata (summer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "eepysleepy": {
+        "canonical": "character:eepy sleepy",
+        "variants": [
+          "character:eepy sleepy",
+          "character:eepy sleepy (sleepy 2.0)",
+          "general:eepysleepy",
+          "general:eepy_sleepy"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "emberamane": {
+        "canonical": "character:ember amane",
+        "variants": [
+          "character:ember amane",
+          "character:ember_amane",
+          "general:emberamane",
+          "character:ember amane (jersey maid)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "footfetish": {
+        "canonical": "general:foot fetish",
+        "variants": [
+          "general:foot fetish",
+          "general:foot_fetish"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mococoabyssgard": {
+        "canonical": "character:mococo abyssgard",
+        "variants": [
+          "character:mococo abyssgard",
+          "general:mococo abyssgard (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "projektmelody": {
+        "canonical": "character:projektmelody",
+        "variants": [
+          "character:projektmelody",
+          "copyright:projektmelody",
+          "general:projekt_melody"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kaminariclara": {
+        "canonical": "character:kaminari clara",
+        "variants": [
+          "character:kaminari clara",
+          "character:kaminari_clara"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "unknownartist": {
+        "canonical": "artist:unknown_artist",
+        "variants": [
+          "artist:unknown_artist",
+          "artist:unknown artist"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "johnzerowb": {
+        "canonical": "artist:john zerowb",
+        "variants": [
+          "artist:john zerowb",
+          "artist:john_zerowb"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cowbell": {
+        "canonical": "general:cowbell",
+        "variants": [
+          "general:cowbell",
+          "general:cow bell"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "pokorakun": {
+        "canonical": "character:poko rakun",
+        "variants": [
+          "character:poko rakun",
+          "general:pokorakun"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "horn": {
+        "canonical": "general:horn",
+        "variants": [
+          "general:horn",
+          "character:horn (arknights)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cumstring": {
+        "canonical": "general:cum string",
+        "variants": [
+          "general:cum string",
+          "general:cumstring"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "spikes": {
+        "canonical": "general:spikes",
+        "variants": [
+          "general:spikes",
+          "general:spikes (anatomy)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cowgirl": {
+        "canonical": "general:cow girl",
+        "variants": [
+          "general:cow girl",
+          "general:cowgirl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sayusincronisity": {
+        "canonical": "character:sayu sincronisity",
+        "variants": [
+          "character:sayu sincronisity",
+          "character:sayu sincronisity (1st costume)",
+          "character:sayu sincronisity (3rd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kuonbb": {
+        "canonical": "artist:kuon bb",
+        "variants": [
+          "artist:kuon bb",
+          "artist:kuon bb (kuonr18/epijbp)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "marimari": {
+        "canonical": "character:marimari_en",
+        "variants": [
+          "character:marimari (vtuber)",
+          "character:marimari (vtuber) (marimari 2.0)",
+          "general:marimari (vtuber)",
+          "general:marimari (vtuber) (marimari 2.0)",
+          "character:marimari_en",
+          "character:marimari en"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fuwawaabyssgard": {
+        "canonical": "character:fuwawa abyssgard",
+        "variants": [
+          "character:fuwawa abyssgard",
+          "character:fuwawa abyssgard (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shishirobotan": {
+        "canonical": "character:shishiro botan",
+        "variants": [
+          "character:shishiro botan",
+          "character:shishiro botan (4th costume)",
+          "general:shishiro botan (jirai kei)",
+          "general:shishiro botan (button-down)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "alternatebreastsize": {
+        "canonical": "general:alternate breast size",
+        "variants": [
+          "general:alternate breast size",
+          "general:alternate breast size (larger)",
+          "general:alternate breast size (smaller)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cross": {
+        "canonical": "general:cross",
+        "variants": [
+          "general:cross",
+          "artist:cross (vgne4542)",
+          "character:cross (xenoblade x)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "crosssection": {
+        "canonical": "general:cross section",
+        "variants": [
+          "general:cross section",
+          "general:cross-section"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "eyepatch": {
+        "canonical": "general:eyepatch",
+        "variants": [
+          "general:eyepatch",
+          "general:eye patch"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "snuffy": {
+        "canonical": "character:snuffy",
+        "variants": [
+          "character:snuffy",
+          "character:snuffy (vtuber)",
+          "general:snuffy (vtuber) (avatar of death)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mikamelatika": {
+        "canonical": "character:mika melatika",
+        "variants": [
+          "character:mika melatika",
+          "character:mika melatika (2nd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "teamwork": {
+        "canonical": "general:teamwork (sexual)",
+        "variants": [
+          "general:teamwork (sexual)",
+          "general:teamwork"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bunnygirl": {
+        "canonical": "general:bunny girl",
+        "variants": [
+          "general:bunny girl",
+          "general:bunnygirl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "utatanenasa": {
+        "canonical": "character:utatane nasa",
+        "variants": [
+          "character:utatane nasa",
+          "general:utatanenasa"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "microbikini": {
+        "canonical": "general:micro bikini",
+        "variants": [
+          "general:micro bikini",
+          "general:microbikini"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "takanashikiara": {
+        "canonical": "character:takanashi kiara",
+        "variants": [
+          "character:takanashi kiara",
+          "character:takanashi kiara (fever night)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "takodachi": {
+        "canonical": "character:takodachi_(ninomae_ina'nis)",
+        "variants": [
+          "character:takodachi (ninomae ina'nis)",
+          "character:takodachi"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ceciliaimmergreen": {
+        "canonical": "character:cecilia immergreen",
+        "variants": [
+          "character:cecilia immergreen",
+          "character:cecilia_immergreen"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ceresfauna": {
+        "canonical": "character:ceres fauna",
+        "variants": [
+          "character:ceres fauna",
+          "general:ceres fauna (goth)",
+          "character:ceres fauna (goth costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "incest": {
+        "canonical": "general:incest",
+        "variants": [
+          "general:incest",
+          "general:incest (lore)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "selfupload": {
+        "canonical": "meta:self-upload",
+        "variants": [
+          "meta:self-upload",
+          "meta:self upload"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "personalami": {
+        "canonical": "artist:personalami",
+        "variants": [
+          "artist:personalami",
+          "artist:personal ami",
+          "general:personal ami"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "donquixote": {
+        "canonical": "character:don quixote (limbus company)",
+        "variants": [
+          "character:don quixote (limbus company)",
+          "character:don quixote (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "pupi": {
+        "canonical": "artist:pupi",
+        "variants": [
+          "artist:pupi",
+          "artist:pupi (rain prophet)",
+          "artist:p_u_p_i"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "firstpersonview": {
+        "canonical": "general:first person view",
+        "variants": [
+          "general:first person view",
+          "general:first-person view"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "marimarien": {
+        "canonical": "character:marimari_en",
+        "variants": [
+          "character:marimari_en",
+          "character:marimari en"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dawapat": {
+        "canonical": "artist:dawa pat",
+        "variants": [
+          "artist:dawa pat",
+          "artist:dawapat"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fluffy": {
+        "canonical": "artist:fluffy_(fluffycataaa/fluffylotusart)",
+        "variants": [
+          "general:fluffy",
+          "artist:fluffy (fluffycataaa/fluffylotusart)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "antennae": {
+        "canonical": "general:antennae",
+        "variants": [
+          "general:antennae",
+          "general:antennae (anatomy)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fishgirl": {
+        "canonical": "general:fish girl",
+        "variants": [
+          "general:fish girl",
+          "general:fishgirl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hairclips": {
+        "canonical": "general:hairclips",
+        "variants": [
+          "general:hairclips",
+          "general:hair clips"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "evilneuro": {
+        "canonical": "character:evil neuro",
+        "variants": [
+          "character:evil neuro",
+          "character:evil_neuro"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "juufuuteiraden": {
+        "canonical": "character:juufuutei raden",
+        "variants": [
+          "character:juufuutei raden",
+          "character:juufuutei raden (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dako": {
+        "canonical": "artist:dako",
+        "variants": [
+          "artist:dako",
+          "general:dako (dakosito)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "schoolgirl": {
+        "canonical": "general:schoolgirl",
+        "variants": [
+          "general:schoolgirl",
+          "general:school girl",
+          "general:school_girl"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "arrax": {
+        "canonical": "artist:arrax (wdah8558)",
+        "variants": [
+          "artist:arrax (wdah8558)",
+          "general:arrax"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sinclair": {
+        "canonical": "character:sinclair (limbus company)",
+        "variants": [
+          "character:sinclair (limbus company)",
+          "character:sinclair (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ellenjoe": {
+        "canonical": "character:ellen joe",
+        "variants": [
+          "character:ellen joe",
+          "character:ellen joe (on campus)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dr.nova": {
+        "canonical": "character:dr.nova(e)",
+        "variants": [
+          "character:dr.nova(e)",
+          "character:dr.nova (e)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "photo": {
+        "canonical": "general:photo (object)",
+        "variants": [
+          "general:photo (object)",
+          "general:photo"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "asbestos": {
+        "canonical": "character:asbestos (arknights)",
+        "variants": [
+          "character:asbestos (arknights)",
+          "character:asbestos (glen sonata) (arknights)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "aiko": {
+        "canonical": "character:aiko_(phase_connect)",
+        "variants": [
+          "character:aiko (phase connect)",
+          "general:aiko"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "uruharushia": {
+        "canonical": "character:uruha rushia",
+        "variants": [
+          "character:uruha rushia",
+          "character:uruha rushia (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "gloryhole": {
+        "canonical": "general:glory hole",
+        "variants": [
+          "general:glory hole",
+          "general:gloryhole"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rockeater": {
+        "canonical": "artist:rock eater",
+        "variants": [
+          "artist:rock eater",
+          "artist:rock eater (geode consumer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twitterstripgame": {
+        "canonical": "meta:twitter strip game (meme)",
+        "variants": [
+          "meta:twitter strip game (meme)",
+          "meta:twitter strip game"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fullnelson": {
+        "canonical": "general:full nelson",
+        "variants": [
+          "general:full nelson",
+          "general:full nelson (legs held)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "lightskinned": {
+        "canonical": "general:light-skinned",
+        "variants": [
+          "general:light-skinned",
+          "general:light skinned"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "achan": {
+        "canonical": "character:a-chan (hololive)",
+        "variants": [
+          "character:a-chan (hololive)",
+          "general:a-chan (2nd costume) (hololive)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "minatoaqua": {
+        "canonical": "character:minato aqua",
+        "variants": [
+          "character:minato aqua",
+          "general:minato aqua (sailor)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twotoneskin": {
+        "canonical": "general:two-tone skin",
+        "variants": [
+          "general:two-tone skin",
+          "general:two tone skin"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "buttplug": {
+        "canonical": "general:butt plug",
+        "variants": [
+          "general:butt plug",
+          "general:buttplug"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "yukihanalamy": {
+        "canonical": "character:yukihana lamy",
+        "variants": [
+          "character:yukihana lamy",
+          "general:yukihana lamy (cyber)",
+          "character:yukihana lamy (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "helltaker": {
+        "canonical": "copyright:helltaker",
+        "variants": [
+          "copyright:helltaker",
+          "character:helltaker (character)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bao": {
+        "canonical": "character:bao (vtuber)",
+        "variants": [
+          "character:bao (vtuber)",
+          "character:bao"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "wall": {
+        "canonical": "general:wall",
+        "variants": [
+          "general:wall",
+          "general:wall (structure)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cyberpunk": {
+        "canonical": "copyright:cyberpunk",
+        "variants": [
+          "copyright:cyberpunk",
+          "general:cyberpunk",
+          "copyright:cyberpunk (series)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "henyathegenius": {
+        "canonical": "character:henya the genius",
+        "variants": [
+          "character:henya the genius",
+          "general:henya the genius (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "filian": {
+        "canonical": "character:filian (vtuber)",
+        "variants": [
+          "character:filian (vtuber)",
+          "character:filian"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ironmouse": {
+        "canonical": "character:ironmouse",
+        "variants": [
+          "character:ironmouse",
+          "character:ironmouse (cyber outfit)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shirakamifubuki": {
+        "canonical": "character:shirakami fubuki",
+        "variants": [
+          "character:shirakami fubuki",
+          "character:shirakami fubuki (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "arbuzbudesh": {
+        "canonical": "artist:arbuzbudesh",
+        "variants": [
+          "artist:arbuzbudesh",
+          "general:arbuz budesh"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "facemask": {
+        "canonical": "general:facemask",
+        "variants": [
+          "general:facemask",
+          "general:face mask"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "malyna": {
+        "canonical": "character:malyna",
+        "variants": [
+          "character:malyna",
+          "character:malyna (malberrybush)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "murasakishion": {
+        "canonical": "character:murasaki shion",
+        "variants": [
+          "character:murasaki shion",
+          "general:murasaki shion (magical girl maid)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "runieruse": {
+        "canonical": "character:runie ruse",
+        "variants": [
+          "character:runie ruse",
+          "character:runie_ruse"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "couple": {
+        "canonical": "general:couple",
+        "variants": [
+          "general:couple",
+          "general:couple (romantic)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "chabaneroi": {
+        "canonical": "artist:chabaneroi",
+        "variants": [
+          "artist:chabaneroi",
+          "artist:chaban eroi"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sakiya": {
+        "canonical": "artist:sakiya",
+        "variants": [
+          "artist:sakiya",
+          "artist:sakiya (sak1 01)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dakimakura": {
+        "canonical": "meta:dakimakura",
+        "variants": [
+          "meta:dakimakura",
+          "meta:dakimakura (medium)",
+          "general:dakimakura (object)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "earring": {
+        "canonical": "general:earring",
+        "variants": [
+          "general:earring",
+          "general:ear ring"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hspace": {
+        "canonical": "artist:h space",
+        "variants": [
+          "artist:h space",
+          "artist:hspace"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shisuimichiru": {
+        "canonical": "character:shisui michiru",
+        "variants": [
+          "character:shisui michiru",
+          "character:shisui michiru (phase connect)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fluffycataaa": {
+        "canonical": "artist:fluffy_(fluffycataaa/fluffylotusart)",
+        "variants": [
+          "artist:fluffycataaa",
+          "general:fluffycataaa (artist)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kal'tsit": {
+        "canonical": "character:kal'tsit_(arknights)",
+        "variants": [
+          "character:kal'tsit (arknights)",
+          "general:kal'tsit"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "faust": {
+        "canonical": "character:faust (limbus company)",
+        "variants": [
+          "character:faust (limbus company)",
+          "character:faust (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "aigenerated": {
+        "canonical": "meta:ai generated",
+        "variants": [
+          "meta:ai generated",
+          "artist:ai_generated"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "wideeyed": {
+        "canonical": "general:wide-eyed",
+        "variants": [
+          "general:wide-eyed",
+          "general:wide eyed"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "plap": {
+        "canonical": "general:plap",
+        "variants": [
+          "general:plap",
+          "meta:plap (sound)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "koshimizutoru": {
+        "canonical": "character:koshimizu toru",
+        "variants": [
+          "character:koshimizu toru",
+          "general:koshimizu toru (3rd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "aiassisted": {
+        "canonical": "general:ai-assisted",
+        "variants": [
+          "general:ai-assisted",
+          "meta:ai-assisted",
+          "meta:ai assisted"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "noelther": {
+        "canonical": "artist:noelther",
+        "variants": [
+          "artist:noelther",
+          "artist:noelther (artist)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "wolf": {
+        "canonical": "general:wolf",
+        "variants": [
+          "general:wolf",
+          "character:wolf (league of legends)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "alien": {
+        "canonical": "general:alien",
+        "variants": [
+          "general:alien",
+          "copyright:alien (franchise)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shower": {
+        "canonical": "general:shower",
+        "variants": [
+          "general:shower",
+          "general:shower (place)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "takakuraken": {
+        "canonical": "character:takakura ken (okarun)",
+        "variants": [
+          "character:takakura ken (okarun)",
+          "character:takakura ken (dandadan)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "leiheng": {
+        "canonical": "character:lei heng (limbus company)",
+        "variants": [
+          "character:lei heng (limbus company)",
+          "character:lei heng (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "headpat": {
+        "canonical": "general:headpat",
+        "variants": [
+          "general:headpat",
+          "general:head pat"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "karin": {
+        "canonical": "character:karin (blue archive)",
+        "variants": [
+          "character:karin (blue archive)",
+          "character:karin (bunny) (blue archive)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "leagueoflegends": {
+        "canonical": "copyright:league of legends",
+        "variants": [
+          "copyright:league of legends",
+          "copyright:league_of_legends"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "strapon": {
+        "canonical": "general:strap-on",
+        "variants": [
+          "general:strap-on",
+          "general:strapon"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "starshapedpupils": {
+        "canonical": "general:star-shaped pupils",
+        "variants": [
+          "general:star-shaped pupils",
+          "general:star shaped pupils"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fumihiko": {
+        "canonical": "artist:fumihiko (pixiv2658856)",
+        "variants": [
+          "artist:fumihiko (pixiv2658856)",
+          "artist:fumihiko (fu mihi ko)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "leglock": {
+        "canonical": "general:leg lock",
+        "variants": [
+          "general:leg lock",
+          "general:leglock"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shortstack": {
+        "canonical": "general:short stack",
+        "variants": [
+          "general:short stack",
+          "general:shortstack"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tanskinnedmale": {
+        "canonical": "general:tan-skinned male",
+        "variants": [
+          "general:tan-skinned male",
+          "general:tan skinned male"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rebecca": {
+        "canonical": "character:rebecca_(cyberpunk)",
+        "variants": [
+          "character:rebecca (edgerunners)",
+          "character:rebecca (cyberpunk)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "naruto": {
+        "canonical": "copyright:naruto",
+        "variants": [
+          "copyright:naruto",
+          "copyright:naruto (series)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "redhood": {
+        "canonical": "character:red hood (black souls)",
+        "variants": [
+          "character:red hood (black souls)",
+          "character:red hood"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "jufufu": {
+        "canonical": "character:ju fufu",
+        "variants": [
+          "character:ju fufu",
+          "character:ju fufu (zenless zone zero)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rose": {
+        "canonical": "general:rose",
+        "variants": [
+          "general:rose",
+          "general:rose (flower)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "anyamelfissa": {
+        "canonical": "character:anya melfissa",
+        "variants": [
+          "character:anya melfissa",
+          "character:anya melfissa (1st costume)",
+          "general:anya melfissa (indonesian casual)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "equusignis": {
+        "canonical": "artist:equus ignis",
+        "variants": [
+          "artist:equus ignis",
+          "artist:equus_ignis"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "lizehelesta": {
+        "canonical": "character:lize helesta",
+        "variants": [
+          "character:lize helesta",
+          "character:lize helesta (4th costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "petplay": {
+        "canonical": "general:petplay",
+        "variants": [
+          "general:petplay",
+          "general:pet play"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "houshoumarine": {
+        "canonical": "character:houshou marine",
+        "variants": [
+          "character:houshou marine",
+          "character:houshou marine (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "maomao": {
+        "canonical": "character:mao mao",
+        "variants": [
+          "character:mao mao",
+          "general:maomao"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "pixelart": {
+        "canonical": "general:pixel art",
+        "variants": [
+          "general:pixel art",
+          "general:pixelart",
+          "meta:pixel art"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sidetiepanties": {
+        "canonical": "general:side-tie panties",
+        "variants": [
+          "general:side-tie panties",
+          "general:side tie panties"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ishmael": {
+        "canonical": "character:ishmael (limbus company)",
+        "variants": [
+          "character:ishmael (limbus company)",
+          "character:ishmael (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "haruurara": {
+        "canonical": "character:haru urara (umamusume)",
+        "variants": [
+          "character:haru urara (umamusume)",
+          "meta:haruurara"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mousetrap": {
+        "canonical": "general:mousetrap",
+        "variants": [
+          "general:mousetrap",
+          "general:mouse trap"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "monsterhunter": {
+        "canonical": "copyright:monster hunter (series)",
+        "variants": [
+          "copyright:monster hunter (series)",
+          "copyright:monster hunter"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "teacup": {
+        "canonical": "general:teacup",
+        "variants": [
+          "general:teacup",
+          "general:tea cup"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "chenki": {
+        "canonical": "artist:chenki",
+        "variants": [
+          "artist:chenki (chenki)",
+          "artist:chenki"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "diamond": {
+        "canonical": "general:diamond (shape)",
+        "variants": [
+          "general:diamond (shape)",
+          "general:diamond (gemstone)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "lime": {
+        "canonical": "general:lime (fruit)",
+        "variants": [
+          "general:lime (fruit)",
+          "general:lime"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "keyboard": {
+        "canonical": "general:keyboard",
+        "variants": [
+          "general:keyboard",
+          "general:keyboard (instrument)",
+          "general:keyboard (computer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "femalebyleth": {
+        "canonical": "character:female byleth (fire emblem)",
+        "variants": [
+          "character:female byleth (fire emblem)",
+          "character:female byleth (enlightened) (fire emblem)",
+          "character:female byleth (the fodlan light) (fire emblem)",
+          "general:female byleth (fire emblem) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "eldenring": {
+        "canonical": "copyright:elden_ring",
+        "variants": [
+          "copyright:eldenring",
+          "general:eldenring",
+          "copyright:elden ring"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hololiveen": {
+        "canonical": "copyright:hololive_en",
+        "variants": [
+          "general:hololiveen",
+          "general:hololive en"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "greatpretender": {
+        "canonical": "copyright:great_pretender",
+        "variants": [
+          "general:greatpretender",
+          "general:great pretender"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "handholding": {
+        "canonical": "general:handholding",
+        "variants": [
+          "general:handholding",
+          "general:hand holding"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "handprint": {
+        "canonical": "general:hand print",
+        "variants": [
+          "general:hand print",
+          "general:handprint"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bodypaint": {
+        "canonical": "general:bodypaint",
+        "variants": [
+          "general:bodypaint",
+          "general:body paint"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mindbreak": {
+        "canonical": "general:mind break",
+        "variants": [
+          "general:mind break",
+          "general:mindbreak"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "threetonehair": {
+        "canonical": "general:three tone hair",
+        "variants": [
+          "general:three tone hair",
+          "general:three-tone hair"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "genderswap": {
+        "canonical": "meta:genderswap",
+        "variants": [
+          "meta:genderswap",
+          "meta:genderswap (mtf)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "slime": {
+        "canonical": "general:slime (substance)",
+        "variants": [
+          "general:slime (substance)",
+          "general:slime"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "kurokumoclan": {
+        "canonical": "character:kurokumo clan (identity) (project moon)",
+        "variants": [
+          "character:kurokumo clan (identity) (project moon)",
+          "general:kurokumo clan"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "artoriapendragon": {
+        "canonical": "character:artoria pendragon",
+        "variants": [
+          "character:artoria pendragon",
+          "character:artoria pendragon (lancer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tomato": {
+        "canonical": "general:tomato (sword)",
+        "variants": [
+          "general:tomato (sword)",
+          "general:tomato"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ball": {
+        "canonical": "general:ball",
+        "variants": [
+          "general:ball",
+          "general:ball (object)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "seia": {
+        "canonical": "character:seia (blue archive)",
+        "variants": [
+          "character:seia (blue archive)",
+          "character:seia (swimsuit) (blue archive)",
+          "general:seia (blue archive) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "saki": {
+        "canonical": "character:saki (the atko)",
+        "variants": [
+          "character:saki (the atko)",
+          "character:saki (kezime)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "yamagamikaruta": {
+        "canonical": "character:yamagami karuta",
+        "variants": [
+          "character:yamagami karuta",
+          "character:yamagami karuta (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "inuitoko": {
+        "canonical": "character:inui toko",
+        "variants": [
+          "character:inui toko",
+          "character:inui toko (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "asuna": {
+        "canonical": "character:asuna (blue archive)",
+        "variants": [
+          "character:asuna (blue archive)",
+          "character:asuna (bunny) (blue archive)",
+          "character:asuna (blue archive) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dooby": {
+        "canonical": "character:dooby",
+        "variants": [
+          "character:dooby",
+          "general:dooby",
+          "general:dooby (summer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hiodoshiao": {
+        "canonical": "character:hiodoshi ao",
+        "variants": [
+          "character:hiodoshi ao",
+          "character:hiodoshi ao (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twotonetail": {
+        "canonical": "general:two tone tail",
+        "variants": [
+          "general:two tone tail",
+          "general:two-tone tail"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "oshinoshinobu": {
+        "canonical": "character:oshino_shinobu",
+        "variants": [
+          "character:oshino_shinobu",
+          "general:oshino shinobu"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "fallenshadow": {
+        "canonical": "character:fallenshadow",
+        "variants": [
+          "character:fallenshadow",
+          "character:fallenshadow (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "caesarking": {
+        "canonical": "character:caesar king",
+        "variants": [
+          "character:caesar king",
+          "character:caesar king (zenless zone zero)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "twotonebody": {
+        "canonical": "general:two tone body",
+        "variants": [
+          "general:two tone body",
+          "general:two-tone body"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "daughter": {
+        "canonical": "general:daughter",
+        "variants": [
+          "general:daughter",
+          "general:daughter (lore)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "father": {
+        "canonical": "general:father",
+        "variants": [
+          "general:father",
+          "general:father (lore)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rodion": {
+        "canonical": "character:rodion (limbus company)",
+        "variants": [
+          "character:rodion (limbus company)",
+          "character:rodion (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "bodypillow": {
+        "canonical": "general:body pillow",
+        "variants": [
+          "general:body pillow",
+          "general:bodypillow"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "procreate": {
+        "canonical": "meta:procreate (software)",
+        "variants": [
+          "meta:procreate (software)",
+          "meta:procreate (medium)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "arciealbano": {
+        "canonical": "artist:arcie albano",
+        "variants": [
+          "artist:arcie albano",
+          "artist:arciealbano"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "ladywolf": {
+        "canonical": "character:lady wolf",
+        "variants": [
+          "character:lady wolf",
+          "character:lady wolf (arbuzbudesh)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "facefuck": {
+        "canonical": "general:face fuck",
+        "variants": [
+          "general:face fuck",
+          "general:facefuck"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "getpregnant": {
+        "canonical": "meta:get pregnant (meme)",
+        "variants": [
+          "meta:get pregnant (meme)",
+          "general:get pregnant"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "rabbithole": {
+        "canonical": "copyright:rabbit hole (vocaloid)",
+        "variants": [
+          "copyright:rabbit hole (vocaloid)",
+          "character:rabbit hole (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "petragurin": {
+        "canonical": "character:petra gurin",
+        "variants": [
+          "character:petra gurin",
+          "general:petra gurin (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hyuni": {
+        "canonical": "artist:hyuni",
+        "variants": [
+          "artist:hyuni",
+          "general:hyuni (hyunicat)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "tracer": {
+        "canonical": "character:tracer",
+        "variants": [
+          "character:tracer",
+          "character:tracer (overwatch 2 suit)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "zeppy": {
+        "canonical": "character:zeppy (azur lane)",
+        "variants": [
+          "character:zeppy (azur lane)",
+          "general:zeppy (azur lane) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "monogatari": {
+        "canonical": "copyright:monogatari (series)",
+        "variants": [
+          "copyright:monogatari (series)",
+          "copyright:monogatari"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sasakisaku": {
+        "canonical": "character:sasaki saku",
+        "variants": [
+          "character:sasaki saku",
+          "character:sasaki saku (1st costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "imooishiizo": {
+        "canonical": "artist:imooishiizo",
+        "variants": [
+          "artist:imooishiizo",
+          "artist:imooishiizo (tamagooishiizo)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "skaikun": {
+        "canonical": "artist:skai kun",
+        "variants": [
+          "artist:skai kun",
+          "artist:skai_kun"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sisterofbattle": {
+        "canonical": "general:sister_of_battle",
+        "variants": [
+          "general:sister_of_battle",
+          "character:sister of battle"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "warhammer": {
+        "canonical": "general:warhammer",
+        "variants": [
+          "general:warhammer",
+          "copyright:warhammer (franchise)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "warhammer40k": {
+        "canonical": "general:warhammer40k",
+        "variants": [
+          "general:warhammer40k",
+          "copyright:warhammer 40k"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "titsout": {
+        "canonical": "general:tits-out",
+        "variants": [
+          "general:tits-out",
+          "general:tits out"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "pochiwanmaru": {
+        "canonical": "general:pochiwanmaru",
+        "variants": [
+          "general:pochiwanmaru",
+          "character:pochi_wanmaru"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "vestiazeta": {
+        "canonical": "character:vestia_zeta",
+        "variants": [
+          "character:vestia_zeta",
+          "character:vestia zeta"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "picture": {
+        "canonical": "general:picture (object)",
+        "variants": [
+          "general:picture (object)",
+          "general:picture"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mouse": {
+        "canonical": "general:mouse",
+        "variants": [
+          "general:mouse",
+          "general:mouse (computer)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "cumslut": {
+        "canonical": "general:cum slut",
+        "variants": [
+          "general:cum slut",
+          "general:cumslut"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "dodok": {
+        "canonical": "artist:dodok_(gj77230)",
+        "variants": [
+          "artist:dodok",
+          "artist:dodok (gj77230)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "winter": {
+        "canonical": "artist:winter (winterinkoakuma)",
+        "variants": [
+          "artist:winter (winterinkoakuma)",
+          "general:winter"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "crosseyed": {
+        "canonical": "general:cross eyed",
+        "variants": [
+          "general:cross eyed",
+          "general:cross-eyed"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "surtr": {
+        "canonical": "character:surtr (arknights)",
+        "variants": [
+          "character:surtr (arknights)",
+          "character:surtr (colorful wonderland) (arknights)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "jazzmaggot": {
+        "canonical": "general:jazz maggot",
+        "variants": [
+          "general:jazz maggot",
+          "general:jazzmaggot"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shiranuiflare": {
+        "canonical": "character:shiranui flare",
+        "variants": [
+          "character:shiranui flare",
+          "character:shiranui flare (street)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "greyskinnedfemale": {
+        "canonical": "general:grey-skinned female",
+        "variants": [
+          "general:grey-skinned female",
+          "general:grey skinned female"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "lowres": {
+        "canonical": "meta:low res",
+        "variants": [
+          "meta:low res",
+          "meta:lowres"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "samuraijack": {
+        "canonical": "copyright:samurai jack",
+        "variants": [
+          "copyright:samurai jack",
+          "character:samurai jack (character)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "anna": {
+        "canonical": "character:anna (fire emblem engage)",
+        "variants": [
+          "character:anna (fire emblem engage)",
+          "character:anna (fire emblem)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "hare": {
+        "canonical": "character:hare (blue archive)",
+        "variants": [
+          "character:hare (blue archive)",
+          "character:hare (camp) (blue archive)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "genitalgrowth": {
+        "canonical": "general:genital growth",
+        "variants": [
+          "general:genital growth",
+          "general:genital growth (enlargement)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "penisgrowth": {
+        "canonical": "general:penis growth",
+        "variants": [
+          "general:penis growth",
+          "general:penis growth (enlargement)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "visor": {
+        "canonical": "general:visor",
+        "variants": [
+          "general:visor",
+          "general:visor (eyewear)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "thomson": {
+        "canonical": "artist:thomson (thomthomson1217)",
+        "variants": [
+          "artist:thomson (thomthomson1217)",
+          "artist:thomson_(thomthomson1217)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "shoko": {
+        "canonical": "artist:shoko (shokoshako)",
+        "variants": [
+          "artist:shoko (shokoshako)",
+          "artist:shoko"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "toarumajutsunoindex": {
+        "canonical": "copyright:to aru majutsu no index",
+        "variants": [
+          "copyright:to aru majutsu no index",
+          "copyright:toaru majutsu no index"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "chel": {
+        "canonical": "character:chel",
+        "variants": [
+          "character:chel",
+          "character:chel (carnival)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "underskirt": {
+        "canonical": "general:under skirt",
+        "variants": [
+          "general:under skirt",
+          "general:underskirt"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "monmon": {
+        "canonical": "artist:mon mon",
+        "variants": [
+          "artist:mon mon",
+          "artist:mon_mon"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "gamersupps": {
+        "canonical": "copyright:gamersupps",
+        "variants": [
+          "copyright:gamersupps",
+          "general:gamer supps"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "matoimiia": {
+        "canonical": "artist:matoi miia (artist)",
+        "variants": [
+          "artist:matoi miia (artist)",
+          "artist:matoimiia"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "amiyaaranha": {
+        "canonical": "character:amiya aranha (vtuber)",
+        "variants": [
+          "character:amiya aranha (vtuber)",
+          "general:amiya aranha (3rd costume)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mita": {
+        "canonical": "character:mita (miside)",
+        "variants": [
+          "character:mita (miside)",
+          "character:mita (miside) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "sleepymita": {
+        "canonical": "character:sleepy mita (miside)",
+        "variants": [
+          "character:sleepy mita (miside)",
+          "general:sleepy mita (miside) (cosplay)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "mallet": {
+        "canonical": "general:mallet",
+        "variants": [
+          "general:mallet",
+          "general:mallet (instrument)"
+        ],
+        "excluded": [],
+        "approved": true
+      },
+      "binah": {
+        "canonical": "character:binah",
+        "variants": [
+          "character:binah",
+          "character:binah (project moon)"
+        ],
+        "excluded": [],
+        "approved": true
+      }
+    },
+    "categories": {
+      "virtual youtuber": {
+        "approved": true,
+        "category": "meta"
+      },
+      "hololive": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "uncensored": {
+        "approved": true,
+        "category": "meta"
+      },
+      "simple background": {
+        "approved": true,
+        "category": "general"
+      },
+      "white background": {
+        "approved": true,
+        "category": "general"
+      },
+      "censored": {
+        "approved": true,
+        "category": "meta"
+      },
+      "vtuber": {
+        "approved": true,
+        "category": "meta"
+      },
+      "commentary": {
+        "approved": true,
+        "category": "meta"
+      },
+      "indie virtual youtuber": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "english commentary": {
+        "approved": true,
+        "category": "meta"
+      },
+      "mosaic censoring": {
+        "approved": true,
+        "category": "meta"
+      },
+      "commission": {
+        "approved": true,
+        "category": "meta"
+      },
+      "english text": {
+        "approved": true,
+        "category": "meta"
+      },
+      "tenma maemi": {
+        "approved": true,
+        "category": "character"
+      },
+      "ninomae ina'nis": {
+        "approved": true,
+        "category": "character"
+      },
+      "pipkin pippa": {
+        "approved": true,
+        "category": "character"
+      },
+      "bar censor": {
+        "approved": true,
+        "category": "meta"
+      },
+      "text": {
+        "approved": true,
+        "category": "meta"
+      },
+      "artist name": {
+        "approved": true,
+        "category": "meta"
+      },
+      "hololive indonesia": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "speech bubble": {
+        "approved": true,
+        "category": "meta"
+      },
+      "official alternate costume": {
+        "approved": true,
+        "category": "general"
+      },
+      "belly": {
+        "approved": true,
+        "category": "general"
+      },
+      "arknights": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "phase-connect": {
+        "approved": true,
+        "category": "general"
+      },
+      "ahe gao": {
+        "approved": true,
+        "category": "general"
+      },
+      "grey background": {
+        "approved": true,
+        "category": "general"
+      },
+      "fujikura uruka": {
+        "approved": true,
+        "category": "character"
+      },
+      "himemiya rie": {
+        "approved": true,
+        "category": "character"
+      },
+      "official alternate hairstyle": {
+        "approved": true,
+        "category": "general"
+      },
+      "phone": {
+        "approved": true,
+        "category": "general"
+      },
+      "amanogawa shiina": {
+        "approved": true,
+        "category": "character"
+      },
+      "komachi panko": {
+        "approved": true,
+        "category": "character"
+      },
+      "muu muyu": {
+        "approved": true,
+        "category": "character"
+      },
+      "blue archive": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "twitter username": {
+        "approved": true,
+        "category": "meta"
+      },
+      "blurry": {
+        "approved": true,
+        "category": "meta"
+      },
+      "rinkou ashelia": {
+        "approved": true,
+        "category": "character"
+      },
+      "koikatsu": {
+        "approved": true,
+        "category": "meta"
+      },
+      "monochrome": {
+        "approved": true,
+        "category": "meta"
+      },
+      "blurry background": {
+        "approved": true,
+        "category": "meta"
+      },
+      "shadow": {
+        "approved": true,
+        "category": "general"
+      },
+      "signature": {
+        "approved": true,
+        "category": "meta"
+      },
+      "korean text": {
+        "approved": true,
+        "category": "meta"
+      },
+      "gradient background": {
+        "approved": true,
+        "category": "general"
+      },
+      "black background": {
+        "approved": true,
+        "category": "general"
+      },
+      "artist request": {
+        "approved": true,
+        "category": "artist"
+      },
+      "erina makina": {
+        "approved": true,
+        "category": "character"
+      },
+      "projektmelody": {
+        "approved": true,
+        "category": "character"
+      },
+      "meme": {
+        "approved": true,
+        "category": "meta"
+      },
+      "fanart": {
+        "approved": true,
+        "category": "general"
+      },
+      "korean commentary": {
+        "approved": true,
+        "category": "meta"
+      },
+      "border": {
+        "approved": true,
+        "category": "meta"
+      },
+      "sound effects": {
+        "approved": true,
+        "category": "meta"
+      },
+      "greyscale": {
+        "approved": true,
+        "category": "meta"
+      },
+      "large variant set": {
+        "approved": true,
+        "category": "meta"
+      },
+      "censored pussy": {
+        "approved": true,
+        "category": "general"
+      },
+      "character request": {
+        "approved": true,
+        "category": "character"
+      },
+      "watermark": {
+        "approved": true,
+        "category": "meta"
+      },
+      "white border": {
+        "approved": true,
+        "category": "general"
+      },
+      "marimari (vtuber)": {
+        "approved": true,
+        "category": "character"
+      },
+      "censored penis": {
+        "approved": true,
+        "category": "general"
+      },
+      "profile": {
+        "approved": true,
+        "category": "general"
+      },
+      "comic": {
+        "approved": true,
+        "category": "general"
+      },
+      "remilia nephys": {
+        "approved": true,
+        "category": "character"
+      },
+      "censor bar": {
+        "approved": true,
+        "category": "meta"
+      },
+      "purple background": {
+        "approved": true,
+        "category": "general"
+      },
+      "crossover": {
+        "approved": true,
+        "category": "general"
+      },
+      "blue eyes female": {
+        "approved": true,
+        "category": "general"
+      },
+      "blue background": {
+        "approved": true,
+        "category": "general"
+      },
+      "convenient censoring": {
+        "approved": true,
+        "category": "meta"
+      },
+      "cropped legs": {
+        "approved": true,
+        "category": "general"
+      },
+      "outside border": {
+        "approved": true,
+        "category": "general"
+      },
+      "oc": {
+        "approved": true,
+        "category": "general"
+      },
+      "cyberpunk": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "transparent background": {
+        "approved": true,
+        "category": "general"
+      },
+      "chromatic aberration": {
+        "approved": true,
+        "category": "general"
+      },
+      "dated": {
+        "approved": true,
+        "category": "meta"
+      },
+      "zoom layer": {
+        "approved": true,
+        "category": "meta"
+      },
+      "pokemon": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "two-tone background": {
+        "approved": true,
+        "category": "general"
+      },
+      "edamame (edamame55)": {
+        "approved": true,
+        "category": "artist"
+      },
+      "logo": {
+        "approved": true,
+        "category": "meta"
+      },
+      "phaseconnect": {
+        "approved": true,
+        "category": "general"
+      },
+      "dizzillust": {
+        "approved": true,
+        "category": "meta"
+      },
+      "shiinaughty": {
+        "approved": true,
+        "category": "meta"
+      },
+      "twitter": {
+        "approved": true,
+        "category": "meta"
+      },
+      "personal ami": {
+        "approved": true,
+        "category": "artist"
+      },
+      "noa talent": {
+        "approved": true,
+        "category": "general"
+      },
+      "holonatsu paradise": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "has bad revision": {
+        "approved": true,
+        "category": "meta"
+      },
+      "ai-assisted": {
+        "approved": true,
+        "category": "meta"
+      },
+      "dizzydokuro": {
+        "approved": true,
+        "category": "general"
+      },
+      "laplus_artdesu": {
+        "approved": true,
+        "category": "meta"
+      },
+      "striped background": {
+        "approved": true,
+        "category": "general"
+      },
+      "irys (casualrys) (hololive)": {
+        "approved": true,
+        "category": "general"
+      },
+      "japanese text": {
+        "approved": true,
+        "category": "meta"
+      },
+      "background": {
+        "approved": true,
+        "category": "general"
+      },
+      "strinova": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "close-up": {
+        "approved": true,
+        "category": "general"
+      },
+      "pointless censoring": {
+        "approved": true,
+        "category": "meta"
+      },
+      "male swimwear challenge": {
+        "approved": true,
+        "category": "general"
+      },
+      "character name": {
+        "approved": true,
+        "category": "meta"
+      },
+      "yeougui": {
+        "approved": true,
+        "category": "artist"
+      },
+      "chisakaairi": {
+        "approved": true,
+        "category": "general"
+      },
+      "airi chisaka": {
+        "approved": true,
+        "category": "general"
+      },
+      "urukart": {
+        "approved": true,
+        "category": "meta"
+      },
+      "youtuber": {
+        "approved": true,
+        "category": "meta"
+      },
+      "umamusume": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "chocosong": {
+        "approved": true,
+        "category": "artist"
+      },
+      "borrowed character": {
+        "approved": true,
+        "category": "general"
+      },
+      "blurry foreground": {
+        "approved": true,
+        "category": "general"
+      },
+      "45tanutanu": {
+        "approved": true,
+        "category": "artist"
+      },
+      "spot color": {
+        "approved": true,
+        "category": "general"
+      },
+      "novelty censor": {
+        "approved": true,
+        "category": "general"
+      },
+      "twitter link": {
+        "approved": true,
+        "category": "meta"
+      },
+      "mint fantome (otaku)": {
+        "approved": true,
+        "category": "general"
+      },
+      "beastiez": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "pixiv": {
+        "approved": true,
+        "category": "meta"
+      },
+      "instant loss": {
+        "approved": true,
+        "category": "general"
+      },
+      "heart censor": {
+        "approved": true,
+        "category": "meta"
+      },
+      "portrait": {
+        "approved": true,
+        "category": "meta"
+      },
+      "parody": {
+        "approved": true,
+        "category": "general"
+      },
+      "has censored revision": {
+        "approved": true,
+        "category": "general"
+      },
+      "distr": {
+        "approved": true,
+        "category": "artist"
+      },
+      "eldenring": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "nsfw": {
+        "approved": true,
+        "category": "meta"
+      },
+      "pixel art": {
+        "approved": true,
+        "category": "meta"
+      },
+      "censored genitalia": {
+        "approved": true,
+        "category": "general"
+      },
+      "kairo0": {
+        "approved": true,
+        "category": "artist"
+      },
+      "multiple arms": {
+        "approved": true,
+        "category": "general"
+      },
+      "leaf": {
+        "approved": true,
+        "category": "character"
+      },
+      "elira pendora (1st costume)": {
+        "approved": true,
+        "category": "character"
+      },
+      "fake screenshot": {
+        "approved": true,
+        "category": "general"
+      },
+      "black border": {
+        "approved": true,
+        "category": "general"
+      },
+      "hollowsuia": {
+        "approved": true,
+        "category": "artist"
+      },
+      "marimari (vtuber) (marimari 2.0)": {
+        "approved": true,
+        "category": "character"
+      },
+      "dooby": {
+        "approved": true,
+        "category": "character"
+      },
+      "pocky": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "german text": {
+        "approved": true,
+        "category": "meta"
+      },
+      "hentai": {
+        "approved": true,
+        "category": "general"
+      },
+      "minecraft": {
+        "approved": true,
+        "category": "copyright"
+      },
+      "airirkgk": {
+        "approved": true,
+        "category": "meta"
+      },
+      "emberdoodle": {
+        "approved": true,
+        "category": "meta"
+      },
+      "patreon": {
+        "approved": true,
+        "category": "meta"
+      },
+      "censored nipples": {
+        "approved": true,
+        "category": "general"
+      },
+      "character censor": {
+        "approved": true,
+        "category": "general"
+      },
+      "sussynano": {
+        "approved": true,
+        "category": "artist"
+      }
+    },
+    "garbage": {
+      "general:バーチャルyoutuber": "approved",
+      "meta:お酒絵": "approved",
+      "general:ロリ": "approved",
+      "general:ホロライブ": "approved",
+      "general:むうむゆ": "approved",
+      "general:すじ": "approved",
+      "general:エリナ・マキナ": "approved",
+      "general:ラプラス・ダークネス": "approved",
+      "general:女の子": "approved",
+      "general:お腹": "approved",
+      "general:盗撮": "approved",
+      "general:着替え": "approved",
+      "general:ピップキンピッパ": "approved",
+      "general:三ノ輪銀": "approved",
+      "general:鷲尾須美は勇者である": "approved",
+      "general:傷跡": "approved",
+      "general:一人称視点": "approved",
+      "general:天満マエミ": "approved",
+      "general:ホロライブid": "approved",
+      "general:ぱんつ": "approved",
+      "general:裸足": "approved",
+      "general:獣姦": "approved",
+      "general:千坂アイリ": "approved",
+      "general:藤倉ウルカ": "approved",
+      "general:おへそ": "approved",
+      "general:ちっぱい": "approved",
+      "general:ケモミミ": "approved",
+      "general:中出し": "approved",
+      "general:足指": "approved",
+      "general:フェラ": "approved",
+      "general:ディルド": "approved",
+      "general:アナル": "approved",
+      "general:腹ボコ": "approved",
+      "artist:魔王沾酱": "approved",
+      "general:後背位": "approved",
+      "general:腋": "approved",
+      "general:足裏": "approved",
+      "general:ふともも": "approved",
+      "general:天ノ川しいな": "approved",
+      "general:水着": "approved",
+      "general:おっぱい": "approved",
+      "general:ソックス足裏": "approved",
+      "general:貧乳": "approved",
+      "general:エンバー天音": "approved",
+      "general:牛耳": "approved",
+      "meta:オナニーの日": "approved",
+      "general:アナル舐め": "approved",
+      "general:鈴香アシェリア": "approved",
+      "general:けもみみ": "approved",
+      "general:魔法少女にあこがれて": "approved",
+      "general:百合": "approved",
+      "general:愛液": "approved",
+      "general:ふたなり": "approved",
+      "general:騎乗位": "approved",
+      "general:葬送のフリーレン": "approved",
+      "general:艦これ": "approved",
+      "general:アビー": "approved",
+      "general:グレートプリテンダー": "approved",
+      "general:褐色": "approved",
+      "general:アビゲイル・ジョーンズ": "approved",
+      "general:揉みしだきたい乳": "approved",
+      "general:全裸": "approved",
+      "general:小町ぱんこ": "approved",
+      "general:開脚": "approved",
+      "general:紫咲シオン": "approved",
+      "general:ターニャ・デグレチャフ": "approved",
+      "general:幼女戦記": "approved",
+      "general:一伊那尓栖": "approved",
+      "general:つま先": "approved",
+      "general:バーチャルyoutuber1000users入り": "approved",
+      "general:姫宮りえ": "approved",
+      "general:髑髏ディズィー": "approved",
+      "general:おしっこ": "approved",
+      "general:ドット絵": "approved",
+      "general:足フェチ": "approved",
+      "general:タイツ": "approved",
+      "general:サイズフェチ": "approved",
+      "general:足コキ": "approved",
+      "artist:とをふや": "approved",
+      "meta:絢世調査報告": "approved",
+      "meta:アトりえ": "approved",
+      "meta:クララスト": "approved",
+      "general:転寝ナサ": "approved",
+      "general:とり": "approved",
+      "general:産卵": "approved",
+      "general:馬": "approved",
+      "general:二穴": "approved",
+      "general:アナル中出し": "approved",
+      "general:アヘ顔": "approved",
+      "general:トモちゃんは女の子!": "approved",
+      "general:ショートヘア": "approved",
+      "general:ロコムジカ": "approved",
+      "general:ルベルブルーメ": "approved",
+      "general:陰毛": "approved",
+      "general:ロコルベ": "approved",
+      "general:汗": "approved",
+      "general:阿良河キウィ": "approved",
+      "general:まほあこ": "approved",
+      "general:レオパルト(エノルミータ)": "approved",
+      "general:断頭台のアウラ": "approved",
+      "general:ゼーリエ": "approved",
+      "general:へそ見せ": "approved",
+      "general:スーツyoutuber": "approved",
+      "general:ケモノ": "approved",
+      "general:ケット・クー・ミコケル": "approved",
+      "general:メスケモ": "approved",
+      "general:バーヴァン・シー(水着)": "approved",
+      "general:竜娘": "approved",
+      "general:おまんこ": "approved",
+      "general:エロ蹲踞": "approved",
+      "general:ヌードモデル": "approved",
+      "general:垂れ愛液": "approved",
+      "general:太もも": "approved",
+      "general:オリジナル7500users入り": "approved",
+      "general:角楯カリン": "approved",
+      "general:ブルーアーカイブ": "approved",
+      "general:ブルアカ": "approved",
+      "general:主観視点": "approved",
+      "general:ブルーアーカイブ5000users入り": "approved",
+      "general:忍野忍": "approved",
+      "general:化物語": "approved",
+      "general:偽物語": "approved",
+      "general:しのらぎ": "approved",
+      "general:膝の上に座る": "approved",
+      "general:薬屋のひとりごと": "approved",
+      "general:猫猫": "approved",
+      "general:ケモ耳": "approved",
+      "general:垂らし事後": "approved",
+      "general:ぶっかけ": "approved",
+      "general:お兄ちゃんはおしまい": "approved",
+      "general:緒山まひろ": "approved",
+      "general:緒山みはり": "approved",
+      "general:おにまい": "approved",
+      "general:お兄ちゃんはおしまい5000users入り": "approved",
+      "general:正常位": "approved",
+      "general:銀髪": "approved",
+      "general:ニーソ": "approved",
+      "general:顔面騎乗": "approved",
+      "general:金子瑠美": "approved",
+      "general:おまんこプレス": "approved",
+      "general:ウサギ耳": "approved",
+      "artist:ゴトー内緒": "approved",
+      "general:受精": "approved",
+      "general:受精拡大図": "approved",
+      "general:まんぐり返し": "approved",
+      "general:大腿": "approved",
+      "general:バニーガール": "approved",
+      "general:兎年": "approved",
+      "general:怒り顔": "approved",
+      "general:乳合わせ": "approved",
+      "general:バーチャルユーチューバー": "approved",
+      "general:フェーズコネクト": "approved",
+      "general:近藤リサ": "approved",
+      "general:ボンテージ": "approved",
+      "general:うごイラ": "approved",
+      "general:スパンキング": "approved",
+      "general:星街すいせい": "approved",
+      "general:おトイレ間に合わなかった系女子": "approved",
+      "general:限界放尿": "approved",
+      "general:野ション": "approved",
+      "general:なかだし": "approved",
+      "general:裸足裏": "approved",
+      "general:軽蔑": "approved",
+      "general:タオル": "approved",
+      "general:温泉": "approved",
+      "general:露出": "approved",
+      "general:裸コート": "approved",
+      "general:レミリア・ネフィス": "approved",
+      "general:尻神様": "approved",
+      "general:明日方舟": "approved",
+      "general:臀部": "approved",
+      "general:丝袜": "approved",
+      "general:凯尔希": "approved",
+      "general:アークナイツ": "approved",
+      "general:アークナイツ10000users入り": "approved",
+      "general:可愛い": "approved",
+      "general:美少女": "approved",
+      "general:巨乳": "approved",
+      "general:裸": "approved",
+      "general:かわい": "approved",
+      "general:狐耳": "approved",
+      "general:牛娘": "approved",
+      "general:hei2∅x (artist)": "approved",
+      "character:claire nuñez": "approved",
+      "general:sехual": "approved",
+      "general:솔씨": "approved",
+      "meta:strinova二次創作": "approved",
+      "meta:ちるぽすと": "approved",
+      "meta:クララの楽屋": "approved",
+      "meta:よふかしのうた": "approved",
+      "meta:七草ナズナ": "approved",
+      "meta:絵まる": "approved",
+      "artist:ﾘｯﾘ": "approved",
+      "meta:モニタリング": "approved",
+      "meta:初音ミク": "approved"
+    }
+  },
+  "hierarchy": [
+    {
+      "tag": "virtual_youtuber",
+      "category": "meta",
+      "children": [
+        {
+          "tag": "copyright:phase_connect",
+          "category": "copyright",
+          "children": [
+            {
+              "tag": "copyright:phase_origins",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:rinkou_ashelia",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:rinkaku",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:ashelewd",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:pipkin_pippa",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:mmoartpg",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:pipporno",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:tenma_maemi",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:お酒絵",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:artcoholic",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:yabaholic",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:fujikura_uruka",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:urukart",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:eroka",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:utatane_nasa",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:supicture",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:nyasuspic",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:hakushika_iori",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:iorissart",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:deerotic",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:shisui_michiru",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:ちるぽすと",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_invaders",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "copyright:phase_invaders_wish",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:dizzy_dokuro",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:dizzillust",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:dizinabox",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "character:jelly_hoshiumi",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:notsafeforjelly",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:jellydoodle",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "character:ember_amane",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:embererotica",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:emberdoodle",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "character:kaneko_lumi",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:lewdmi",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:lumillust",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "copyright:phase_invaders_quest",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:clio_aite",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:clioarte",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:cliopartra",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "character:marimari_en",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:nsfishw",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:mariarti",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "character:eepy_sleepy",
+                      "category": "character",
+                      "children": [
+                        {
+                          "tag": "meta:nartcolepsy",
+                          "category": "meta",
+                          "children": []
+                        },
+                        {
+                          "tag": "meta:freakyeepy",
+                          "category": "meta",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:fuura_yuri",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:leopart",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:lewdpard",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_alias",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:remilia_nephys",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:remicasso",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:rekmilia",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:chisaka_airi",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:ecchisaka",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:airirkgk",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:amanogawa_shiina",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:shiillustration",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:shiinaughty",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:himemiya_rie",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:riestricted",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:atorie",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:erina_makina",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:makincognito",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:makinarchive",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:komachi_panko",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:paintko",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:pankomanko",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_euphoria",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:hikanari_hina",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:hinaesthetic",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:hinanotlewd",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:runie_ruse",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:sendrunes",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:ruseum",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:muu_muyu",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:smuut",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:mooekaki",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:eimi_isami",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:hamsterpiece",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:eiromi",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:saya_sairroxs",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:sayarts",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_saga",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:nitya_nil",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:nityart",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:anya_nyabyss",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:wilhelmina_frost",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:wilhelminart",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:sinon_sinfonia",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:sinonart",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:malice_evermore",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:malicegallery",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:bibi_biscuit",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:bibiprints",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_kaleido",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:kannagi_loki",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:巫ロ禁",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:巫ロキ",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:ayase_yuu",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:絢世調査報告",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:kaminari_clara",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:クララスト",
+                      "category": "meta",
+                      "children": []
+                    },
+                    {
+                      "tag": "meta:クララの楽屋",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:kokoromo_memory",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:めもりーすけっち",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "character:gram_pico",
+                  "category": "character",
+                  "children": [
+                    {
+                      "tag": "meta:picoture",
+                      "category": "meta",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:phase_connect_staff",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:h2osakana",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:aiko_(phase_connect)",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:muumi_hasekura",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:mili_(phase_connect)",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "meta:phaselewd",
+              "category": "meta",
+              "children": []
+            }
+          ]
+        },
+        {
+          "tag": "copyright:nijisanji",
+          "category": "copyright",
+          "children": [
+            {
+              "tag": "copyright:nijisanji_en",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "copyright:nijisanji_en_lazulight",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:elira_pendora",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:finana_ryugu",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:pomu_rainpuff",
+                      "category": "character",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "copyright:nijisanji_en_obsydia",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:rosemi_lovelock",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:petra_gurin",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:selen_tatsumaki",
+                      "category": "character",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "copyright:nijisanji_en_ethyria",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:nina_kosaka",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:millie_parfait",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:enna_alouette",
+                      "category": "character",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "copyright:nijisanji_en_iluna",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:maria_marionette",
+                      "category": "character",
+                      "children": []
+                    },                    
+                    {
+                      "tag": "character:scarle_yonaguni",
+                      "category": "character",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "copyright:nijisanji_en_xsoleil",
+                  "category": "copyright",
+                  "children": [
+                    {
+                      "tag": "character:zaion_lanza",
+                      "category": "character",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "copyright:nijisanji_id",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:mika_melatika",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hana_macchia",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:nijisanji_jp",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:ange_katrina",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:furen_e_lustario",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hyakumantenbara_salome",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:inui_toko",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:ishigami_nozomi",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:koshimizu_toru",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kuzuha",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:lize_helesta",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:sasaki_saku",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:shioriha_ruri",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:suo_sango",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:yamagami_karuta",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "copyright:indie_virtual_youtuber",
+          "category": "copyright",
+          "children": [
+            {
+              "tag": "character:dooby3d",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:dokibird",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:mint_fantome",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:matara_kan",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:rin_penrose",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:nimi_nightmare",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:bao_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:akuma_nihmune",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:monarch_(amalee)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:amiya_aranha_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:annytf",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:aquwa",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:asari_mitshuha",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:beribug",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:camila_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:cerbervt",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:sleepy_project",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:chibidoki",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:cottontail_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:crelly",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:clauvio",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:doremii",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:dr.nova(e)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:el_xox",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:ellie_minibot",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:evil_neuro",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:neuro-sama",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:vedal987",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:fallenshadow",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:fefe_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:filian_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:flipsie",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:fluffenfox",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:froot",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:grimmivt",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:henya_the_genius",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:ironmouse",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:juniper_actias_(egocider)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:katsubao_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:kokonuts",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:projektmelody",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:kson_onair",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:kumo_kuddelmuddel",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:laimu",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:layna_lazar",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:leaflit",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:lucy_pyre",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:michi_mochievee",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:minikomew",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:nano_(nanoless)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:zonbko",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:yokomara_yuziko",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:yamigashi_kana",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:vienna_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:squchan_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:snuffy",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:nekoyo_chloe",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:nyatasha_nyanners",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:peari_morino",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:pochimaru_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:rainhoe",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:sameko_saba",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:sanagi_yuzu",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:sayu_sincronisity",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:senzawa",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:shigure_ui_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:shylily",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:sinder_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:toma_(vtuber)",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:trickywi",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:veibae",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:vexoria_the_sun_eater",
+              "category": "character",
+              "children": []
+            },
+            {
+              "tag": "character:vrisvi_pilver",
+              "category": "character",
+              "children": []
+            }
+          ]
+        },
+        {
+          "tag": "copyright:hololive",
+          "category": "copyright",
+          "children": [
+            {
+              "tag": "copyright:hololive_gen_0",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:tokino_sora",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:roboco_san",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:sakura_miko",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hoshimachi_suisei",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:azki",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gen_1",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:aki_rosenthal",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:akai_haato",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:shirakami_fubuki",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:natsuiro_matsuri",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:yozora_mel",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hitomi_chris",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gen_2",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:nakiri_ayame",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:yuzuki_choco",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:oozora_subaru",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:minato_aqua",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:murasaki_shion",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gamers",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:ookami_mio",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:nekomata_okayu",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:inugami_korone",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gen_3",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:usada_pekora",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:shiranui_flare",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:shirogane_noel",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:houshou_marine",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:uruha_rushia",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gen_4",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:tsunomaki_watame",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:tokoyami_towa",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:himemori_luna",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:amane_kanata",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kiryu_coco",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_gen_5",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:yukihana_lamy",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:momosuzu_nene",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:shishiro_botan",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:omaru_polka",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:mano_aloe",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_holox",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:la+_darknesss",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:takane_lui",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hakui_koyori",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kazama_iroha",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:sakamata_chloe",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_china_gen_1",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:yogiri",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:civia",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:spade_echo",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_china_gen_2",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:artia",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:doris",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:rosalyn",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_indonesia_gen_1",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:ayunda_risu",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:moona_hoshinova",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:airani_iofifteen",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_indonesia_gen_2",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:kureiji_ollie",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:anya_melfissa",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:pavolia_reine",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_indonesia_gen_3",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:vestia_zeta",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kaela_kovalskia",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kobo_kanaeru",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_myth",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:mori_calliope",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:takanashi_kiara",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:ninomae_ina'nis",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:gawr_gura",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:watson_amelia",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_project_hope",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:irys",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_english_-promise-",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:ouro_kronii",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hakos_baelz",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:tsukumo_sana",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:ceres_fauna",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:nanashi_mumei",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_english_-advent-",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:shiori_novella",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:koseki_bijou",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:nerissa_ravencroft",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:fuwawa_abyssgard",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:mococo_abyssgard",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_english_-justice-",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:elizabeth_rose_bloodflame",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:gigi_murin",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:cecilia_immergreen",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:raora_panthera",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_devis_regloss",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:otonose_kanade",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:ichijou_ririka",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:juufuutei_raden",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:todoroki_hajime",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:hiodoshi_ao",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "copyright:hololive_devis_flow_glow",
+              "category": "copyright",
+              "children": [
+                {
+                  "tag": "character:isaki_riona",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:koganei_niko",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:mizumiya_su",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:rindo_chihaya",
+                  "category": "character",
+                  "children": []
+                },
+                {
+                  "tag": "character:kikirara_vivi",
+                  "category": "character",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "timestamp": "2026-01-06T18:14:08.954Z"
+}

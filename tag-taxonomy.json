@@ -1,0 +1,2572 @@
+{
+  "aliases": {
+    "artist": {
+      "foxy rain (foxyreine)": "foxyrain_(foxyreine)",
+      "foxyrain": "foxyrain_(foxyreine)",
+      "xanaduavici": "xanadu_avici",
+      "artselmetti": "artselmetti_(lewdselmetti)",
+      "sunset skyline": "sunsetskyline",
+      "tilt-shift": "tilt-shift_(azalanz)",
+      "kuon bb (kuonr18/epijbp)": "kuon_bb",
+      "personal ami": "personalami",
+      "pupi (rain prophet)": "pupi",
+      "p_u_p_i": "pupi",
+      "dawapat": "dawa_pat",
+      "fluffy": "fluffy_(fluffycataaa/fluffylotusart)",
+      "dako (dakosito)": "dako",
+      "arrax": "arrax_(wdah8558)",
+      "rock eater (geode consumer)": "rock_eater",
+      "arbuz budesh": "arbuzbudesh",
+      "chaban eroi": "chabaneroi",
+      "sakiya (sak1 01)": "sakiya",
+      "hspace": "h_space",
+      "fluffycataaa": "fluffy_(fluffycataaa/fluffylotusart)",
+      "fluffycataaa (artist)": "fluffy_(fluffycataaa/fluffylotusart)",
+      "noelther (artist)": "noelther",
+      "fumihiko (fu mihi ko)": "fumihiko_(pixiv2658856)",
+      "chenki (chenki)": "chenki",
+      "arciealbano": "arcie_albano",
+      "hyuni (hyunicat)": "hyuni",
+      "imooishiizo (tamagooishiizo)": "imooishiizo",
+      "dodok": "dodok_(gj77230)",
+      "winter": "winter_(winterinkoakuma)",
+      "shoko": "shoko_(shokoshako)",
+      "matoimiia": "matoi_miia_(artist)"
+    },
+    "character": {
+      "tenma maemi (1st costume)": "tenma_maemi",
+      "tenmamaemi": "tenma_maemi",
+      "tenma maemi (2nd costume)": "tenma_maemi",
+      "tenma maemi (3rd costume)": "tenma_maemi",
+      "ninomae ina'nis (loungewear)": "ninomae_ina'nis",
+      "ninomae ina'nis (school uniform)": "ninomae_ina'nis",
+      "ninomae ina'nis (5th costume)": "ninomae_ina'nis",
+      "ninomae ina'nis (1st costume)": "ninomae_ina'nis",
+      "ninomae ina'nis (pastry chef)": "ninomae_ina'nis",
+      "ninomae ina'nis (new year)": "ninomae_ina'nis",
+      "pipkin pippa (1st costume)": "pipkin_pippa",
+      "pipkinpippa": "pipkin_pippa",
+      "pipkin pippa (shipkin shippa)": "pipkin_pippa",
+      "dokibird (vtuber)": "dokibird",
+      "dokibird (bounty hunter)": "dokibird",
+      "dokibird (vtuber) (bounty hunter)": "dokibird",
+      "dokibird (vtuber) (summer)": "dokibird",
+      "dokibird (vtuber) (retro doki)": "dokibird",
+      "dokibird (summer)": "dokibird",
+      "hoshimachi suisei (1st costume)": "hoshimachi_suisei",
+      "hoshimachi suisei (casual)": "hoshimachi_suisei",
+      "hoshimachi suisei (sailor)": "hoshimachi_suisei",
+      "hakos baelz (1st costume)": "hakos_baelz",
+      "hakos baelz (steel rose)": "hakos_baelz",
+      "hakos baelz (dakimakura outfit)": "hakos_baelz",
+      "hakos baelz (3rd costume)": "hakos_baelz",
+      "hakos baelz (4th costume)": "hakos_baelz",
+      "hakos baelz (strawberry onesie)": "hakos_baelz",
+      "hakos baelz (holonatsu paradise)": "hakos_baelz",
+      "hakos baelz (5th costume)": "hakos_baelz",
+      "outis (project moon)": "outis_(limbus_company)",
+      "outis": "outis_(limbus_company)",
+      "irys (hololive)": "irys",
+      "irys (irys 2.0) (hololive)": "irys",
+      "irys (casualrys) (hololive)": "irys",
+      "irys (maid) (hololive)": "irys",
+      "irys (holonatsu paradise) (hololive)": "irys",
+      "tokoyami towa (1st costume)": "tokoyami_towa",
+      "tokoyami towa (jirai kei)": "tokoyami_towa",
+      "tokoyami towa (5th costume)": "tokoyami_towa",
+      "tokoyami towa (cyberpunk)": "tokoyami_towa",
+      "dizzydokuro": "dizzy_dokuro",
+      "dizzy dokuro (nurse)": "dizzy_dokuro",
+      "dizzy dokuro (haunted nurse)": "dizzy_dokuro",
+      "dizzy dokuro (2nd costume)": "dizzy_dokuro",
+      "dizzy dokuro (haunted nurse alt.)": "dizzy_dokuro",
+      "dizzy dokuro (project wish)": "dizzy_dokuro",
+      "ouro kronii (maid)": "ouro_kronii",
+      "ouro kronii (1st costume)": "ouro_kronii",
+      "ryoshu (project moon)": "ryoshu_(limbus_company)",
+      "kureijiollie": "kureiji_ollie",
+      "kureiji ollie (indonesian dress)": "kureiji_ollie",
+      "kaneko lumi (3rd costume)": "kaneko_lumi",
+      "kaneko lumi (cosplay)": "kaneko_lumi",
+      "kaneko lumi (project wish)": "kaneko_lumi",
+      "amanogawa shiina (2nd costume)": "amanogawa_shiina",
+      "amanogawashiina": "amanogawa_shiina",
+      "amanogawa shiina (cosplay)": "amanogawa_shiina",
+      "amanogawa shiina (crab)": "amanogawa_shiina",
+      "clio aite (clio 2.0)": "clio_aite",
+      "muumuyu": "muu_muyu",
+      "koseki bijou (casual)": "koseki_bijou",
+      "koseki bijou (1st costume)": "koseki_bijou",
+      "himemiya rie (1st costume)": "himemiya_rie",
+      "komachi panko (1st costume)": "komachi_panko",
+      "komachipanko": "komachi_panko",
+      "komachi panko (beeko)": "komachi_panko",
+      "gawr gura (1st costume)": "gawr_gura",
+      "gawr gura (school uniform)": "gawr_gura",
+      "mori calliope (holonatsu paradise)": "mori_calliope",
+      "mori calliope (1st costume)": "mori_calliope",
+      "mori calliope (rock bunny)": "mori_calliope",
+      "mori calliope (party dress)": "mori_calliope",
+      "mori calliope (streetwear)": "mori_calliope",
+      "mori calliope (sleepwear)": "mori_calliope",
+      "mint fantome (otaku)": "mint_fantome",
+      "mint fantome (minto 2.0)": "mint_fantome",
+      "jelly hoshiumi (2nd costume)": "jelly_hoshiumi",
+      "jelly hoshiumi (comfy)": "jelly_hoshiumi",
+      "jellyhoshiumi": "jelly_hoshiumi",
+      "gigi murin (new year)": "gigi_murin",
+      "gigimurin": "gigi_murin",
+      "gigi murin (holonatsu paradise)": "gigi_murin",
+      "elira pendora (2nd costume)": "elira_pendora",
+      "elira pendora (3rd costume)": "elira_pendora",
+      "elira pendora (1st costume)": "elira_pendora",
+      "elira pendora (4th costume)": "elira_pendora",
+      "nanashi mumei (emo)": "nanashi_mumei",
+      "nanashi mumei (3rd costume)": "nanashi_mumei",
+      "rinkou ashelia (lia 1.0)": "rinkou_ashelia",
+      "exusiai (midnight delivery) (arknights)": "exusiai_(arknights)",
+      "selen tatsuki (2nd costume)": "selen_tatsuki",
+      "neru (school uniform) (blue archive)": "neru_(blue_archive)",
+      "neru (bunny) (blue archive)": "neru_(blue_archive)",
+      "neru (swimsuit) (blue archive)": "neru_(blue_archive)",
+      "chisakaairi": "chisaka_airi",
+      "chisaka airi (pto outfit)": "chisaka_airi",
+      "enna alouette (maid)": "enna_alouette",
+      "finana ryugu (2nd costume)": "finana_ryugu",
+      "finana ryugu (1st costume)": "finana_ryugu",
+      "la+ darknesss (4th costume)": "la+_darknesss",
+      "melody (projektmelody)": "projektmelody",
+      "melody (projektmelody) (mall goth)": "projektmelody",
+      "erinamakina": "erina_makina",
+      "ange katrina (7th costume)": "ange_katrina",
+      "ange katrina (1st costume)": "ange_katrina",
+      "ange katrina (6th costume)": "ange_katrina",
+      "ange katrina (5th costume)": "ange_katrina",
+      "ange katrina (2nd costume)": "ange_katrina",
+      "eimiisami": "eimi_isami",
+      "kobo kanaeru (1st costume)": "kobo_kanaeru",
+      "shiori novella (1st costume)": "shiori_novella",
+      "amane kanata (work)": "amane_kanata",
+      "amane kanata (cutesy punk)": "amane_kanata",
+      "amane kanata (summer)": "amane_kanata",
+      "eepy sleepy (sleepy 2.0)": "eepy_sleepy",
+      "eepysleepy": "eepy_sleepy",
+      "emberamane": "ember_amane",
+      "ember amane (jersey maid)": "ember_amane",
+      "mococo abyssgard (1st costume)": "mococo_abyssgard",
+      "projekt_melody": "projektmelody",
+      "pokorakun": "poko_rakun",
+      "sayu sincronisity (1st costume)": "sayu_sincronisity",
+      "sayu sincronisity (3rd costume)": "sayu_sincronisity",
+      "marimari (vtuber)": "marimari_en",
+      "marimari (vtuber) (marimari 2.0)": "marimari_en",
+      "fuwawa abyssgard (1st costume)": "fuwawa_abyssgard",
+      "shishiro botan (4th costume)": "shishiro_botan",
+      "shishiro botan (jirai kei)": "shishiro_botan",
+      "shishiro botan (button-down)": "shishiro_botan",
+      "snuffy (vtuber)": "snuffy",
+      "snuffy (vtuber) (avatar of death)": "snuffy",
+      "mika melatika (2nd costume)": "mika_melatika",
+      "utatanenasa": "utatane_nasa",
+      "takanashi kiara (fever night)": "takanashi_kiara",
+      "takodachi": "takodachi_(ninomae_ina'nis)",
+      "ceres fauna (goth)": "ceres_fauna",
+      "ceres fauna (goth costume)": "ceres_fauna",
+      "don quixote (project moon)": "don_quixote_(limbus_company)",
+      "juufuutei raden (1st costume)": "juufuutei_raden",
+      "sinclair (project moon)": "sinclair_(limbus_company)",
+      "ellen joe (on campus)": "ellen_joe",
+      "dr.nova (e)": "dr.nova(e)",
+      "asbestos (glen sonata) (arknights)": "asbestos_(arknights)",
+      "aiko": "aiko_(phase_connect)",
+      "uruha rushia (1st costume)": "uruha_rushia",
+      "a-chan (2nd costume) (hololive)": "a-chan_(hololive)",
+      "minato aqua (sailor)": "minato_aqua",
+      "yukihana lamy (cyber)": "yukihana_lamy",
+      "yukihana lamy (1st costume)": "yukihana_lamy",
+      "bao": "bao_(vtuber)",
+      "henya the genius (1st costume)": "henya_the_genius",
+      "filian": "filian_(vtuber)",
+      "ironmouse (cyber outfit)": "ironmouse",
+      "shirakami fubuki (1st costume)": "shirakami_fubuki",
+      "malyna (malberrybush)": "malyna",
+      "murasaki shion (magical girl maid)": "murasaki_shion",
+      "shisui michiru (phase connect)": "shisui_michiru",
+      "kal'tsit": "kal'tsit_(arknights)",
+      "faust (project moon)": "faust_(limbus_company)",
+      "koshimizu toru (3rd costume)": "koshimizu_toru",
+      "takakura ken (dandadan)": "takakura_ken_(okarun)",
+      "lei heng (project moon)": "lei_heng_(limbus_company)",
+      "karin (bunny) (blue archive)": "karin_(blue_archive)",
+      "rebecca (edgerunners)": "rebecca_(cyberpunk)",
+      "red hood": "red_hood_(black_souls)",
+      "ju fufu (zenless zone zero)": "ju_fufu",
+      "anya melfissa (1st costume)": "anya_melfissa",
+      "anya melfissa (indonesian casual)": "anya_melfissa",
+      "lize helesta (4th costume)": "lize_helesta",
+      "houshou marine (1st costume)": "houshou_marine",
+      "maomao": "mao_mao",
+      "ishmael (project moon)": "ishmael_(limbus_company)",
+      "haruurara": "haru_urara_(umamusume)",
+      "female byleth (enlightened) (fire emblem)": "female_byleth_(fire_emblem)",
+      "female byleth (the fodlan light) (fire emblem)": "female_byleth_(fire_emblem)",
+      "female byleth (fire emblem) (cosplay)": "female_byleth_(fire_emblem)",
+      "kurokumo clan": "kurokumo_clan_(identity)_(project_moon)",
+      "artoria pendragon (lancer)": "artoria_pendragon",
+      "seia (swimsuit) (blue archive)": "seia_(blue_archive)",
+      "seia (blue archive) (cosplay)": "seia_(blue_archive)",
+      "saki (kezime)": "saki_(the_atko)",
+      "yamagami karuta (1st costume)": "yamagami_karuta",
+      "inui toko (1st costume)": "inui_toko",
+      "asuna (bunny) (blue archive)": "asuna_(blue_archive)",
+      "asuna (blue archive) (cosplay)": "asuna_(blue_archive)",
+      "dooby (summer)": "dooby",
+      "hiodoshi ao (1st costume)": "hiodoshi_ao",
+      "fallenshadow (1st costume)": "fallenshadow",
+      "caesar king (zenless zone zero)": "caesar_king",
+      "rodion (project moon)": "rodion_(limbus_company)",
+      "lady wolf (arbuzbudesh)": "lady_wolf",
+      "petra gurin (1st costume)": "petra_gurin",
+      "tracer (overwatch 2 suit)": "tracer",
+      "zeppy (azur lane) (cosplay)": "zeppy_(azur_lane)",
+      "sasaki saku (1st costume)": "sasaki_saku",
+      "surtr (colorful wonderland) (arknights)": "surtr_(arknights)",
+      "shiranui flare (street)": "shiranui_flare",
+      "anna (fire emblem)": "anna_(fire_emblem_engage)",
+      "hare (camp) (blue archive)": "hare_(blue_archive)",
+      "chel (carnival)": "chel",
+      "amiya aranha (3rd costume)": "amiya_aranha_(vtuber)",
+      "mita (miside) (cosplay)": "mita_(miside)",
+      "sleepy mita (miside) (cosplay)": "sleepy_mita_(miside)",
+      "binah (project moon)": "binah"
+    },
+    "copyright": {
+      "phase-connect": "phase_connect",
+      "phaseconnect": "phase_connect",
+      "phaseorigins": "phase_origins",
+      "honkai": "honkai_(series)",
+      "idolen": "idol-en",
+      "helltaker (character)": "helltaker",
+      "cyberpunk (series)": "cyberpunk",
+      "naruto (series)": "naruto",
+      "monster hunter": "monster_hunter_(series)",
+      "eldenring": "elden_ring",
+      "hololiveen": "hololive_en",
+      "greatpretender": "great_pretender",
+      "rabbit hole (cosplay)": "rabbit_hole_(vocaloid)",
+      "monogatari": "monogatari_(series)",
+      "samurai jack (character)": "samurai_jack",
+      "toaru majutsu no index": "to_aru_majutsu_no_index",
+      "gamer supps": "gamersupps"
+    },
+    "general": {
+      "light skinned female": "light-skinned_female",
+      "thigh highs": "thighhighs",
+      "twintails (hairstyle)": "twintails",
+      "two tone hair": "two-tone_hair",
+      "darkskin": "dark_skin",
+      "hair clip": "hairclip",
+      "aftersex": "after_sex",
+      "cum drip": "cumdrip",
+      "one-eye closed": "one_eye_closed",
+      "swim_suit": "swimsuit",
+      "sextoy": "sex_toy",
+      "bellybutton": "belly_button",
+      "hairbow": "hair_bow",
+      "star (sky)": "star_(symbol)",
+      "star": "star_(symbol)",
+      "doggystyle": "doggy_style",
+      "ahegao": "ahe_gao",
+      "foxgirl": "fox_girl",
+      "black thigh highs": "black_thighhighs",
+      "headwings": "head_wings",
+      "catgirl": "cat_girl",
+      "band-aid": "bandaid",
+      "missionary (legs up)": "missionary",
+      "steam (software)": "steam",
+      "camel toe": "cameltoe",
+      "cowprint": "cow_print",
+      "white thigh highs": "white_thighhighs",
+      "side boob": "sideboob",
+      "bodywriting": "body_writing",
+      "cow bell": "cowbell",
+      "horn (arknights)": "horn",
+      "cumstring": "cum_string",
+      "spikes (anatomy)": "spikes",
+      "cowgirl": "cow_girl",
+      "alternate breast size (larger)": "alternate_breast_size",
+      "alternate breast size (smaller)": "alternate_breast_size",
+      "cross (vgne4542)": "cross",
+      "cross (xenoblade x)": "cross",
+      "cross-section": "cross_section",
+      "eye patch": "eyepatch",
+      "teamwork": "teamwork_(sexual)",
+      "bunnygirl": "bunny_girl",
+      "microbikini": "micro_bikini",
+      "incest (lore)": "incest",
+      "first-person view": "first_person_view",
+      "antennae (anatomy)": "antennae",
+      "fishgirl": "fish_girl",
+      "hair clips": "hairclips",
+      "school girl": "schoolgirl",
+      "school_girl": "schoolgirl",
+      "photo": "photo_(object)",
+      "gloryhole": "glory_hole",
+      "full nelson (legs held)": "full_nelson",
+      "light skinned": "light-skinned",
+      "two tone skin": "two-tone_skin",
+      "buttplug": "butt_plug",
+      "wall (structure)": "wall",
+      "face mask": "facemask",
+      "couple (romantic)": "couple",
+      "ear ring": "earring",
+      "wide eyed": "wide-eyed",
+      "plap (sound)": "plap",
+      "ai assisted": "ai-assisted",
+      "wolf (league of legends)": "wolf",
+      "alien (franchise)": "alien",
+      "shower (place)": "shower",
+      "head pat": "headpat",
+      "strapon": "strap-on",
+      "star shaped pupils": "star-shaped_pupils",
+      "leglock": "leg_lock",
+      "shortstack": "short_stack",
+      "tan skinned male": "tan-skinned_male",
+      "rose (flower)": "rose",
+      "pet play": "petplay",
+      "pixelart": "pixel_art",
+      "side tie panties": "side-tie_panties",
+      "mouse trap": "mousetrap",
+      "tea cup": "teacup",
+      "diamond (gemstone)": "diamond_(shape)",
+      "lime": "lime_(fruit)",
+      "keyboard (instrument)": "keyboard",
+      "keyboard (computer)": "keyboard",
+      "hand holding": "handholding",
+      "handprint": "hand_print",
+      "body paint": "bodypaint",
+      "mindbreak": "mind_break",
+      "three-tone hair": "three_tone_hair",
+      "slime": "slime_(substance)",
+      "tomato": "tomato_(sword)",
+      "ball (object)": "ball",
+      "two-tone tail": "two_tone_tail",
+      "two-tone body": "two_tone_body",
+      "daughter (lore)": "daughter",
+      "father (lore)": "father",
+      "bodypillow": "body_pillow",
+      "facefuck": "face_fuck",
+      "warhammer (franchise)": "warhammer",
+      "warhammer 40k": "warhammer40k",
+      "tits out": "tits-out",
+      "pochi_wanmaru": "pochiwanmaru",
+      "picture": "picture_(object)",
+      "mouse (computer)": "mouse",
+      "cumslut": "cum_slut",
+      "cross-eyed": "cross_eyed",
+      "jazzmaggot": "jazz_maggot",
+      "grey skinned female": "grey-skinned_female",
+      "genital growth (enlargement)": "genital_growth",
+      "penis growth (enlargement)": "penis_growth",
+      "visor (eyewear)": "visor",
+      "underskirt": "under_skirt",
+      "mallet (instrument)": "mallet"
+    },
+    "meta": {
+      "virtualyoutuber": "virtual_youtuber",
+      "vtuber": "virtual_youtuber",
+      "vtuberfanart": "virtual_youtuber",
+      "latam virtual youtuber": "virtual_youtuber",
+      "high res": "highres",
+      "absurd res": "absurdres",
+      "tagme (artist)": "tagme",
+      "tagme (character)": "tagme",
+      "digital media": "digital_media_(artwork)",
+      "digital drawing": "digital_drawing_(artwork)",
+      "self upload": "self-upload",
+      "twitter strip game": "twitter_strip_game_(meme)",
+      "dakimakura (medium)": "dakimakura",
+      "dakimakura (object)": "dakimakura",
+      "genderswap (mtf)": "genderswap",
+      "procreate (medium)": "procreate_(software)",
+      "get pregnant": "get_pregnant_(meme)",
+      "lowres": "low_res"
+    }
+  },
+  "hierarchy": {
+    "copyright:phase_connect": {
+      "category": "copyright",
+      "parents": [
+        "virtual_youtuber"
+      ]
+    },
+    "copyright:phase_origins": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:rinkou_ashelia": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:rinkaku": {
+      "category": "meta",
+      "parents": [
+        "character:rinkou_ashelia"
+      ]
+    },
+    "meta:ashelewd": {
+      "category": "meta",
+      "parents": [
+        "character:rinkou_ashelia"
+      ]
+    },
+    "character:pipkin_pippa": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:mmoartpg": {
+      "category": "meta",
+      "parents": [
+        "character:pipkin_pippa"
+      ]
+    },
+    "meta:pipporno": {
+      "category": "meta",
+      "parents": [
+        "character:pipkin_pippa"
+      ]
+    },
+    "character:tenma_maemi": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:お酒絵": {
+      "category": "meta",
+      "parents": [
+        "character:tenma_maemi"
+      ]
+    },
+    "meta:artcoholic": {
+      "category": "meta",
+      "parents": [
+        "character:tenma_maemi"
+      ]
+    },
+    "meta:yabaholic": {
+      "category": "meta",
+      "parents": [
+        "character:tenma_maemi"
+      ]
+    },
+    "character:fujikura_uruka": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:urukart": {
+      "category": "meta",
+      "parents": [
+        "character:fujikura_uruka"
+      ]
+    },
+    "meta:eroka": {
+      "category": "meta",
+      "parents": [
+        "character:fujikura_uruka"
+      ]
+    },
+    "character:utatane_nasa": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:supicture": {
+      "category": "meta",
+      "parents": [
+        "character:utatane_nasa"
+      ]
+    },
+    "meta:nyasuspic": {
+      "category": "meta",
+      "parents": [
+        "character:utatane_nasa"
+      ]
+    },
+    "character:hakushika_iori": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:iorissart": {
+      "category": "meta",
+      "parents": [
+        "character:hakushika_iori"
+      ]
+    },
+    "meta:deerotic": {
+      "category": "meta",
+      "parents": [
+        "character:hakushika_iori"
+      ]
+    },
+    "character:shisui_michiru": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_origins"
+      ]
+    },
+    "meta:ちるぽすと": {
+      "category": "meta",
+      "parents": [
+        "character:shisui_michiru"
+      ]
+    },
+    "copyright:phase_invaders": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "copyright:phase_invaders_wish": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_invaders"
+      ]
+    },
+    "character:dizzy_dokuro": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_wish"
+      ]
+    },
+    "meta:dizzillust": {
+      "category": "meta",
+      "parents": [
+        "character:dizzy_dokuro"
+      ]
+    },
+    "meta:dizinabox": {
+      "category": "meta",
+      "parents": [
+        "character:dizzy_dokuro"
+      ]
+    },
+    "character:jelly_hoshiumi": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_wish"
+      ]
+    },
+    "meta:notsafeforjelly": {
+      "category": "meta",
+      "parents": [
+        "character:jelly_hoshiumi"
+      ]
+    },
+    "meta:jellydoodle": {
+      "category": "meta",
+      "parents": [
+        "character:jelly_hoshiumi"
+      ]
+    },
+    "character:ember_amane": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_wish"
+      ]
+    },
+    "meta:embererotica": {
+      "category": "meta",
+      "parents": [
+        "character:ember_amane"
+      ]
+    },
+    "meta:emberdoodle": {
+      "category": "meta",
+      "parents": [
+        "character:ember_amane"
+      ]
+    },
+    "character:kaneko_lumi": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_wish"
+      ]
+    },
+    "meta:lewdmi": {
+      "category": "meta",
+      "parents": [
+        "character:kaneko_lumi"
+      ]
+    },
+    "meta:lumillust": {
+      "category": "meta",
+      "parents": [
+        "character:kaneko_lumi"
+      ]
+    },
+    "copyright:phase_invaders_quest": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_invaders"
+      ]
+    },
+    "character:clio_aite": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_quest"
+      ]
+    },
+    "meta:clioarte": {
+      "category": "meta",
+      "parents": [
+        "character:clio_aite"
+      ]
+    },
+    "meta:cliopartra": {
+      "category": "meta",
+      "parents": [
+        "character:clio_aite"
+      ]
+    },
+    "character:marimari_en": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_quest"
+      ]
+    },
+    "meta:nsfishw": {
+      "category": "meta",
+      "parents": [
+        "character:marimari_en"
+      ]
+    },
+    "meta:mariarti": {
+      "category": "meta",
+      "parents": [
+        "character:marimari_en"
+      ]
+    },
+    "character:eepy_sleepy": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders_quest"
+      ]
+    },
+    "meta:nartcolepsy": {
+      "category": "meta",
+      "parents": [
+        "character:eepy_sleepy"
+      ]
+    },
+    "meta:freakyeepy": {
+      "category": "meta",
+      "parents": [
+        "character:eepy_sleepy"
+      ]
+    },
+    "character:fuura_yuri": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_invaders"
+      ]
+    },
+    "meta:leopart": {
+      "category": "meta",
+      "parents": [
+        "character:fuura_yuri"
+      ]
+    },
+    "meta:lewdpard": {
+      "category": "meta",
+      "parents": [
+        "character:fuura_yuri"
+      ]
+    },
+    "copyright:phase_alias": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:remilia_nephys": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:remicasso": {
+      "category": "meta",
+      "parents": [
+        "character:remilia_nephys"
+      ]
+    },
+    "meta:rekmilia": {
+      "category": "meta",
+      "parents": [
+        "character:remilia_nephys"
+      ]
+    },
+    "character:chisaka_airi": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:ecchisaka": {
+      "category": "meta",
+      "parents": [
+        "character:chisaka_airi"
+      ]
+    },
+    "meta:airirkgk": {
+      "category": "meta",
+      "parents": [
+        "character:chisaka_airi"
+      ]
+    },
+    "character:amanogawa_shiina": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:shiillustration": {
+      "category": "meta",
+      "parents": [
+        "character:amanogawa_shiina"
+      ]
+    },
+    "meta:shiinaughty": {
+      "category": "meta",
+      "parents": [
+        "character:amanogawa_shiina"
+      ]
+    },
+    "character:himemiya_rie": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:riestricted": {
+      "category": "meta",
+      "parents": [
+        "character:himemiya_rie"
+      ]
+    },
+    "meta:atorie": {
+      "category": "meta",
+      "parents": [
+        "character:himemiya_rie"
+      ]
+    },
+    "character:erina_makina": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:makincognito": {
+      "category": "meta",
+      "parents": [
+        "character:erina_makina"
+      ]
+    },
+    "meta:makinarchive": {
+      "category": "meta",
+      "parents": [
+        "character:erina_makina"
+      ]
+    },
+    "character:komachi_panko": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_alias"
+      ]
+    },
+    "meta:paintko": {
+      "category": "meta",
+      "parents": [
+        "character:komachi_panko"
+      ]
+    },
+    "meta:pankomanko": {
+      "category": "meta",
+      "parents": [
+        "character:komachi_panko"
+      ]
+    },
+    "copyright:phase_euphoria": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:hikanari_hina": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_euphoria"
+      ]
+    },
+    "meta:hinaesthetic": {
+      "category": "meta",
+      "parents": [
+        "character:hikanari_hina"
+      ]
+    },
+    "meta:hinanotlewd": {
+      "category": "meta",
+      "parents": [
+        "character:hikanari_hina"
+      ]
+    },
+    "character:runie_ruse": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_euphoria"
+      ]
+    },
+    "meta:sendrunes": {
+      "category": "meta",
+      "parents": [
+        "character:runie_ruse"
+      ]
+    },
+    "meta:ruseum": {
+      "category": "meta",
+      "parents": [
+        "character:runie_ruse"
+      ]
+    },
+    "character:muu_muyu": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_euphoria"
+      ]
+    },
+    "meta:smuut": {
+      "category": "meta",
+      "parents": [
+        "character:muu_muyu"
+      ]
+    },
+    "meta:mooekaki": {
+      "category": "meta",
+      "parents": [
+        "character:muu_muyu"
+      ]
+    },
+    "character:eimi_isami": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_euphoria"
+      ]
+    },
+    "meta:hamsterpiece": {
+      "category": "meta",
+      "parents": [
+        "character:eimi_isami"
+      ]
+    },
+    "meta:eiromi": {
+      "category": "meta",
+      "parents": [
+        "character:eimi_isami"
+      ]
+    },
+    "character:saya_sairroxs": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_euphoria"
+      ]
+    },
+    "meta:sayarts": {
+      "category": "meta",
+      "parents": [
+        "character:saya_sairroxs"
+      ]
+    },
+    "copyright:phase_saga": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:nitya_nil": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "meta:nityart": {
+      "category": "meta",
+      "parents": [
+        "character:nitya_nil"
+      ]
+    },
+    "character:anya_nyabyss": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "character:wilhelmina_frost": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "meta:wilhelminart": {
+      "category": "meta",
+      "parents": [
+        "character:wilhelmina_frost"
+      ]
+    },
+    "character:sinon_sinfonia": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "meta:sinonart": {
+      "category": "meta",
+      "parents": [
+        "character:sinon_sinfonia"
+      ]
+    },
+    "character:malice_evermore": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "meta:malicegallery": {
+      "category": "meta",
+      "parents": [
+        "character:malice_evermore"
+      ]
+    },
+    "character:bibi_biscuit": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_saga"
+      ]
+    },
+    "meta:bibiprints": {
+      "category": "meta",
+      "parents": [
+        "character:bibi_biscuit"
+      ]
+    },
+    "copyright:phase_kaleido": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:kannagi_loki": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_kaleido"
+      ]
+    },
+    "meta:巫ロ禁": {
+      "category": "meta",
+      "parents": [
+        "character:kannagi_loki"
+      ]
+    },
+    "meta:巫ロキ": {
+      "category": "meta",
+      "parents": [
+        "character:kannagi_loki"
+      ]
+    },
+    "character:ayase_yuu": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_kaleido"
+      ]
+    },
+    "meta:絢世調査報告": {
+      "category": "meta",
+      "parents": [
+        "character:ayase_yuu"
+      ]
+    },
+    "character:kaminari_clara": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_kaleido"
+      ]
+    },
+    "meta:クララスト": {
+      "category": "meta",
+      "parents": [
+        "character:kaminari_clara"
+      ]
+    },
+    "meta:クララの楽屋": {
+      "category": "meta",
+      "parents": [
+        "character:kaminari_clara"
+      ]
+    },
+    "character:kokoromo_memory": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_kaleido"
+      ]
+    },
+    "meta:めもりーすけっち": {
+      "category": "meta",
+      "parents": [
+        "character:kokoromo_memory"
+      ]
+    },
+    "character:gram_pico": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_kaleido"
+      ]
+    },
+    "meta:picoture": {
+      "category": "meta",
+      "parents": [
+        "character:gram_pico"
+      ]
+    },
+    "copyright:phase_connect_staff": {
+      "category": "copyright",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "character:h2osakana": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_connect_staff"
+      ]
+    },
+    "character:aiko_(phase_connect)": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_connect_staff"
+      ]
+    },
+    "character:muumi_hasekura": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_connect_staff"
+      ]
+    },
+    "character:mili_(phase_connect)": {
+      "category": "character",
+      "parents": [
+        "copyright:phase_connect_staff"
+      ]
+    },
+    "meta:phaselewd": {
+      "category": "meta",
+      "parents": [
+        "copyright:phase_connect"
+      ]
+    },
+    "copyright:nijisanji": {
+      "category": "copyright",
+      "parents": [
+        "virtual_youtuber"
+      ]
+    },
+    "copyright:nijisanji_en": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji"
+      ]
+    },
+    "copyright:nijisanji_en_lazulight": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji_en"
+      ]
+    },
+    "character:elira_pendora": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_lazulight"
+      ]
+    },
+    "character:finana_ryugu": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_lazulight"
+      ]
+    },
+    "character:pomu_rainpuff": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_lazulight"
+      ]
+    },
+    "copyright:nijisanji_en_obsydia": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji_en"
+      ]
+    },
+    "character:rosemi_lovelock": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_obsydia"
+      ]
+    },
+    "character:petra_gurin": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_obsydia"
+      ]
+    },
+    "character:selen_tatsumaki": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_obsydia"
+      ]
+    },
+    "copyright:nijisanji_en_ethyria": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji_en"
+      ]
+    },
+    "character:nina_kosaka": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_ethyria"
+      ]
+    },
+    "character:millie_parfait": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_ethyria"
+      ]
+    },
+    "character:enna_alouette": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_ethyria"
+      ]
+    },
+    "copyright:nijisanji_en_iluna": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji_en"
+      ]
+    },
+    "character:maria_marionette": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_iluna"
+      ]
+    },
+    "character:scarle_yonaguni": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_iluna"
+      ]
+    },
+    "copyright:nijisanji_en_xsoleil": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji_en"
+      ]
+    },
+    "character:zaion_lanza": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_en_xsoleil"
+      ]
+    },
+    "copyright:nijisanji_id": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji"
+      ]
+    },
+    "character:mika_melatika": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_id"
+      ]
+    },
+    "character:hana_macchia": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_id"
+      ]
+    },
+    "copyright:nijisanji_jp": {
+      "category": "copyright",
+      "parents": [
+        "copyright:nijisanji"
+      ]
+    },
+    "character:ange_katrina": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:furen_e_lustario": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:hyakumantenbara_salome": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:inui_toko": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:ishigami_nozomi": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:koshimizu_toru": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:kuzuha": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:lize_helesta": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:sasaki_saku": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:shioriha_ruri": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:suo_sango": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "character:yamagami_karuta": {
+      "category": "character",
+      "parents": [
+        "copyright:nijisanji_jp"
+      ]
+    },
+    "copyright:indie_virtual_youtuber": {
+      "category": "copyright",
+      "parents": [
+        "virtual_youtuber"
+      ]
+    },
+    "character:dooby3d": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:dokibird": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:mint_fantome": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:matara_kan": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:rin_penrose": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:nimi_nightmare": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:bao_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:akuma_nihmune": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:monarch_(amalee)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:amiya_aranha_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:annytf": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:aquwa": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:asari_mitshuha": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:beribug": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:camila_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:cerbervt": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:sleepy_project": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:chibidoki": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:cottontail_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:crelly": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:clauvio": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:doremii": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:dr.nova(e)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:el_xox": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:ellie_minibot": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:evil_neuro": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:neuro-sama": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:vedal987": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:fallenshadow": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:fefe_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:filian_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:flipsie": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:fluffenfox": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:froot": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:grimmivt": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:henya_the_genius": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:ironmouse": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:juniper_actias_(egocider)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:katsubao_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:kokonuts": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:projektmelody": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:kson_onair": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:kumo_kuddelmuddel": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:laimu": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:layna_lazar": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:leaflit": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:lucy_pyre": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:michi_mochievee": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:minikomew": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:nano_(nanoless)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:zonbko": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:yokomara_yuziko": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:yamigashi_kana": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:vienna_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:squchan_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:snuffy": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:nekoyo_chloe": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:nyatasha_nyanners": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:peari_morino": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:pochimaru_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:rainhoe": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:sameko_saba": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:sanagi_yuzu": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:sayu_sincronisity": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:senzawa": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:shigure_ui_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:shylily": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:sinder_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:toma_(vtuber)": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:trickywi": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:veibae": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:vexoria_the_sun_eater": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "character:vrisvi_pilver": {
+      "category": "character",
+      "parents": [
+        "copyright:indie_virtual_youtuber"
+      ]
+    },
+    "copyright:hololive": {
+      "category": "copyright",
+      "parents": [
+        "virtual_youtuber"
+      ]
+    },
+    "copyright:hololive_gen_0": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:tokino_sora": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_0"
+      ]
+    },
+    "character:roboco_san": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_0"
+      ]
+    },
+    "character:sakura_miko": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_0"
+      ]
+    },
+    "character:hoshimachi_suisei": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_0"
+      ]
+    },
+    "character:azki": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_0"
+      ]
+    },
+    "copyright:hololive_gen_1": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:aki_rosenthal": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "character:akai_haato": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "character:shirakami_fubuki": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "character:natsuiro_matsuri": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "character:yozora_mel": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "character:hitomi_chris": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_1"
+      ]
+    },
+    "copyright:hololive_gen_2": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:nakiri_ayame": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_2"
+      ]
+    },
+    "character:yuzuki_choco": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_2"
+      ]
+    },
+    "character:oozora_subaru": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_2"
+      ]
+    },
+    "character:minato_aqua": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_2"
+      ]
+    },
+    "character:murasaki_shion": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_2"
+      ]
+    },
+    "copyright:hololive_gamers": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:ookami_mio": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gamers"
+      ]
+    },
+    "character:nekomata_okayu": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gamers"
+      ]
+    },
+    "character:inugami_korone": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gamers"
+      ]
+    },
+    "copyright:hololive_gen_3": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:usada_pekora": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_3"
+      ]
+    },
+    "character:shiranui_flare": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_3"
+      ]
+    },
+    "character:shirogane_noel": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_3"
+      ]
+    },
+    "character:houshou_marine": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_3"
+      ]
+    },
+    "character:uruha_rushia": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_3"
+      ]
+    },
+    "copyright:hololive_gen_4": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:tsunomaki_watame": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_4"
+      ]
+    },
+    "character:tokoyami_towa": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_4"
+      ]
+    },
+    "character:himemori_luna": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_4"
+      ]
+    },
+    "character:amane_kanata": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_4"
+      ]
+    },
+    "character:kiryu_coco": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_4"
+      ]
+    },
+    "copyright:hololive_gen_5": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:yukihana_lamy": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_5"
+      ]
+    },
+    "character:momosuzu_nene": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_5"
+      ]
+    },
+    "character:shishiro_botan": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_5"
+      ]
+    },
+    "character:omaru_polka": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_5"
+      ]
+    },
+    "character:mano_aloe": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_gen_5"
+      ]
+    },
+    "copyright:hololive_holox": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:la+_darknesss": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_holox"
+      ]
+    },
+    "character:takane_lui": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_holox"
+      ]
+    },
+    "character:hakui_koyori": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_holox"
+      ]
+    },
+    "character:kazama_iroha": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_holox"
+      ]
+    },
+    "character:sakamata_chloe": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_holox"
+      ]
+    },
+    "copyright:hololive_china_gen_1": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:yogiri": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_1"
+      ]
+    },
+    "character:civia": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_1"
+      ]
+    },
+    "character:spade_echo": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_1"
+      ]
+    },
+    "copyright:hololive_china_gen_2": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:artia": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_2"
+      ]
+    },
+    "character:doris": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_2"
+      ]
+    },
+    "character:rosalyn": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_china_gen_2"
+      ]
+    },
+    "copyright:hololive_indonesia_gen_1": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:ayunda_risu": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_1"
+      ]
+    },
+    "character:moona_hoshinova": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_1"
+      ]
+    },
+    "character:airani_iofifteen": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_1"
+      ]
+    },
+    "copyright:hololive_indonesia_gen_2": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:kureiji_ollie": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_2"
+      ]
+    },
+    "character:anya_melfissa": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_2"
+      ]
+    },
+    "character:pavolia_reine": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_2"
+      ]
+    },
+    "copyright:hololive_indonesia_gen_3": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:vestia_zeta": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_3"
+      ]
+    },
+    "character:kaela_kovalskia": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_3"
+      ]
+    },
+    "character:kobo_kanaeru": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_indonesia_gen_3"
+      ]
+    },
+    "copyright:hololive_myth": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:mori_calliope": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_myth"
+      ]
+    },
+    "character:takanashi_kiara": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_myth"
+      ]
+    },
+    "character:ninomae_ina'nis": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_myth"
+      ]
+    },
+    "character:gawr_gura": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_myth"
+      ]
+    },
+    "character:watson_amelia": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_myth"
+      ]
+    },
+    "copyright:hololive_project_hope": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:irys": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_project_hope"
+      ]
+    },
+    "copyright:hololive_english_-promise-": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:ouro_kronii": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-promise-"
+      ]
+    },
+    "character:hakos_baelz": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-promise-"
+      ]
+    },
+    "character:tsukumo_sana": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-promise-"
+      ]
+    },
+    "character:ceres_fauna": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-promise-"
+      ]
+    },
+    "character:nanashi_mumei": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-promise-"
+      ]
+    },
+    "copyright:hololive_english_-advent-": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:shiori_novella": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-advent-"
+      ]
+    },
+    "character:koseki_bijou": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-advent-"
+      ]
+    },
+    "character:nerissa_ravencroft": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-advent-"
+      ]
+    },
+    "character:fuwawa_abyssgard": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-advent-"
+      ]
+    },
+    "character:mococo_abyssgard": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-advent-"
+      ]
+    },
+    "copyright:hololive_english_-justice-": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:elizabeth_rose_bloodflame": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-justice-"
+      ]
+    },
+    "character:gigi_murin": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-justice-"
+      ]
+    },
+    "character:cecilia_immergreen": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-justice-"
+      ]
+    },
+    "character:raora_panthera": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_english_-justice-"
+      ]
+    },
+    "copyright:hololive_devis_regloss": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:otonose_kanade": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_regloss"
+      ]
+    },
+    "character:ichijou_ririka": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_regloss"
+      ]
+    },
+    "character:juufuutei_raden": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_regloss"
+      ]
+    },
+    "character:todoroki_hajime": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_regloss"
+      ]
+    },
+    "character:hiodoshi_ao": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_regloss"
+      ]
+    },
+    "copyright:hololive_devis_flow_glow": {
+      "category": "copyright",
+      "parents": [
+        "copyright:hololive"
+      ]
+    },
+    "character:isaki_riona": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_flow_glow"
+      ]
+    },
+    "character:koganei_niko": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_flow_glow"
+      ]
+    },
+    "character:mizumiya_su": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_flow_glow"
+      ]
+    },
+    "character:rindo_chihaya": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_flow_glow"
+      ]
+    },
+    "character:kikirara_vivi": {
+      "category": "character",
+      "parents": [
+        "copyright:hololive_devis_flow_glow"
+      ]
+    }
+  },
+  "blacklist": {
+    "exact": [
+      "バーチャルyoutuber",
+      "お酒絵",
+      "ロリ",
+      "ホロライブ",
+      "むうむゆ",
+      "すじ",
+      "エリナ・マキナ",
+      "ラプラス・ダークネス",
+      "女の子",
+      "お腹",
+      "盗撮",
+      "着替え",
+      "ピップキンピッパ",
+      "三ノ輪銀",
+      "鷲尾須美は勇者である",
+      "傷跡",
+      "一人称視点",
+      "天満マエミ",
+      "ホロライブid",
+      "ぱんつ",
+      "裸足",
+      "獣姦",
+      "千坂アイリ",
+      "藤倉ウルカ",
+      "おへそ",
+      "ちっぱい",
+      "ケモミミ",
+      "中出し",
+      "足指",
+      "フェラ",
+      "ディルド",
+      "アナル",
+      "腹ボコ",
+      "魔王沾酱",
+      "後背位",
+      "腋",
+      "足裏",
+      "ふともも",
+      "天ノ川しいな",
+      "水着",
+      "おっぱい",
+      "ソックス足裏",
+      "貧乳",
+      "エンバー天音",
+      "牛耳",
+      "オナニーの日",
+      "アナル舐め",
+      "鈴香アシェリア",
+      "けもみみ",
+      "魔法少女にあこがれて",
+      "百合",
+      "愛液",
+      "ふたなり",
+      "騎乗位",
+      "葬送のフリーレン",
+      "艦これ",
+      "アビー",
+      "グレートプリテンダー",
+      "褐色",
+      "アビゲイル・ジョーンズ",
+      "揉みしだきたい乳",
+      "全裸",
+      "小町ぱんこ",
+      "開脚",
+      "紫咲シオン",
+      "ターニャ・デグレチャフ",
+      "幼女戦記",
+      "一伊那尓栖",
+      "つま先",
+      "バーチャルyoutuber1000users入り",
+      "姫宮りえ",
+      "髑髏ディズィー",
+      "おしっこ",
+      "ドット絵",
+      "足フェチ",
+      "タイツ",
+      "サイズフェチ",
+      "足コキ",
+      "とをふや",
+      "絢世調査報告",
+      "アトりえ",
+      "クララスト",
+      "転寝ナサ",
+      "とり",
+      "産卵",
+      "馬",
+      "二穴",
+      "アナル中出し",
+      "アヘ顔",
+      "トモちゃんは女の子!",
+      "ショートヘア",
+      "ロコムジカ",
+      "ルベルブルーメ",
+      "陰毛",
+      "ロコルベ",
+      "汗",
+      "阿良河キウィ",
+      "まほあこ",
+      "レオパルト(エノルミータ)",
+      "断頭台のアウラ",
+      "ゼーリエ",
+      "へそ見せ",
+      "スーツyoutuber",
+      "ケモノ",
+      "ケット・クー・ミコケル",
+      "メスケモ",
+      "バーヴァン・シー(水着)",
+      "竜娘",
+      "おまんこ",
+      "エロ蹲踞",
+      "ヌードモデル",
+      "垂れ愛液",
+      "太もも",
+      "オリジナル7500users入り",
+      "角楯カリン",
+      "ブルーアーカイブ",
+      "ブルアカ",
+      "主観視点",
+      "ブルーアーカイブ5000users入り",
+      "忍野忍",
+      "化物語",
+      "偽物語",
+      "しのらぎ",
+      "膝の上に座る",
+      "薬屋のひとりごと",
+      "猫猫",
+      "ケモ耳",
+      "垂らし事後",
+      "ぶっかけ",
+      "お兄ちゃんはおしまい",
+      "緒山まひろ",
+      "緒山みはり",
+      "おにまい",
+      "お兄ちゃんはおしまい5000users入り",
+      "正常位",
+      "銀髪",
+      "ニーソ",
+      "顔面騎乗",
+      "金子瑠美",
+      "おまんこプレス",
+      "ウサギ耳",
+      "ゴトー内緒",
+      "受精",
+      "受精拡大図",
+      "まんぐり返し",
+      "大腿",
+      "バニーガール",
+      "兎年",
+      "怒り顔",
+      "乳合わせ",
+      "バーチャルユーチューバー",
+      "フェーズコネクト",
+      "近藤リサ",
+      "ボンテージ",
+      "うごイラ",
+      "スパンキング",
+      "星街すいせい",
+      "おトイレ間に合わなかった系女子",
+      "限界放尿",
+      "野ション",
+      "なかだし",
+      "裸足裏",
+      "軽蔑",
+      "タオル",
+      "温泉",
+      "露出",
+      "裸コート",
+      "レミリア・ネフィス",
+      "尻神様",
+      "明日方舟",
+      "臀部",
+      "丝袜",
+      "凯尔希",
+      "アークナイツ",
+      "アークナイツ10000users入り",
+      "可愛い",
+      "美少女",
+      "巨乳",
+      "裸",
+      "かわい",
+      "狐耳",
+      "牛娘",
+      "hei2∅x_(artist)",
+      "claire_nuñez",
+      "sехual",
+      "솔씨",
+      "strinova二次創作",
+      "ちるぽすと",
+      "クララの楽屋",
+      "よふかしのうた",
+      "七草ナズナ",
+      "絵まる",
+      "ﾘｯﾘ",
+      "モニタリング",
+      "初音ミク"
+    ],
+    "patterns": []
+  }
+}
