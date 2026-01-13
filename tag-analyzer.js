@@ -300,6 +300,7 @@ async function main() {
   await analyzer.saveReport(outputPath);
 }
 
-main().catch(console.error);
-
+if (require.main === module) {
+  main().catch(console.error);
+}
 module.exports = TagAnalyzer;

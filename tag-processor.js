@@ -43,20 +43,40 @@ class TagProcessor {
     
     if (!this.config.aliases) return;
     
-    // Process each category (artists, characters, general, etc.)
-    for (const [category, aliases] of Object.entries(this.config.aliases)) {
-      if (category.startsWith('_')) continue; // Skip comments
-      
-      for (const [variation, canonical] of Object.entries(aliases)) {
-        // Store both with and without category prefix
-        const variationLower = variation.toLowerCase().trim();
+    // Detect format by checking first entry
+    const firstKey = Object.keys(this.config.aliases)[0];
+    const firstValue = this.config.aliases[firstKey];
+    
+    // New format: { canonical: { category, variants: [] } }
+    if (firstValue && typeof firstValue === 'object' && firstValue.hasOwnProperty('variants')) {
+      for (const [canonical, data] of Object.entries(this.config.aliases)) {
+        const category = data.category || 'general';
+        const variants = data.variants || [];
         const canonicalLower = canonical.toLowerCase().trim();
         
-        // Map the variation to canonical form
-        this.aliasMap.set(variationLower, canonicalLower);
+        for (const variant of variants) {
+          const variationLower = variant.toLowerCase().trim();
+          
+          // Map variant to canonical (without category)
+          this.aliasMap.set(variationLower, canonicalLower);
+          
+          // Also map with category prefix
+          this.aliasMap.set(`${category}:${variationLower}`, `${category}:${canonicalLower}`);
+        }
+      }
+    }
+    // Old format: { category: { variant: canonical } }
+    else {
+      for (const [category, aliases] of Object.entries(this.config.aliases)) {
+        if (category.startsWith('_')) continue; // Skip comments
         
-        // Also map variations with category prefix
-        this.aliasMap.set(`${category}:${variationLower}`, `${category}:${canonicalLower}`);
+        for (const [variation, canonical] of Object.entries(aliases)) {
+          const variationLower = variation.toLowerCase().trim();
+          const canonicalLower = canonical.toLowerCase().trim();
+          
+          this.aliasMap.set(variationLower, canonicalLower);
+          this.aliasMap.set(`${category}:${variationLower}`, `${category}:${canonicalLower}`);
+        }
       }
     }
   }

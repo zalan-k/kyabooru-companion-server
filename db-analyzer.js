@@ -371,4 +371,7 @@ if (require.main === module) {
     });
 }
 
+if (require.main === module) {
+  main().catch(console.error);
+}
 module.exports = DatabaseAnalyzer;
