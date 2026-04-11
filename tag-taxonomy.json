@@ -9,7 +9,26 @@
     }
   },
   "exclusions": {
-    "blacklist": [],
+    "blacklist": [
+      "general:バーチャルyoutuber",
+      "meta:お酒絵",
+      "general:ロリ",
+      "general:ホロライブ",
+      "general:むうむゆ",
+      "general:すじ",
+      "general:エリナ・マキナ",
+      "general:ラプラス・ダークネス",
+      "general:女の子",
+      "general:お腹",
+      "general:盗撮",
+      "general:着替え",
+      "general:ピップキンピッパ",
+      "general:三ノ輪銀",
+      "general:鷲尾須美は勇者である",
+      "general:傷跡",
+      "general:一人称視点",
+      "general:天満マエミ"
+    ],
     "whitelist": []
   },
   "hierarchy": {},
@@ -84,19 +103,19 @@
         "confidence": 0.95
       },
       {
+        "canonical": "dark_skin",
+        "category": "general",
+        "variants": [
+          "general:darkskin"
+        ],
+        "confidence": 0.95
+      },
+      {
         "canonical": "meta:tagme",
         "category": "meta",
         "variants": [
           "meta:tagme (artist)",
           "meta:tagme (character)"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "dark_skin",
-        "category": "general",
-        "variants": [
-          "general:darkskin"
         ],
         "confidence": 0.95
       },
@@ -117,6 +136,22 @@
         "confidence": 0.95
       },
       {
+        "canonical": "after_sex",
+        "category": "general",
+        "variants": [
+          "general:aftersex"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "bow",
+        "category": "general",
+        "variants": [
+          "general:bow (weapon)"
+        ],
+        "confidence": 0.95
+      },
+      {
         "canonical": "character:ninomae_ina'nis",
         "category": "character",
         "variants": [
@@ -124,10 +159,20 @@
           "character:ninomae ina'nis (school uniform)",
           "character:ninomae ina'nis (1st costume)",
           "general:ninomae ina'nis (5th costume)",
+          "character:ninomae ina'nis (casual)",
           "general:ninomae ina'nis",
           "general:ninomae ina'nis (pastry chef)",
           "character:ninomae ina'nis (new year)",
-          "character:ninomae_ina'nis"
+          "character:ninomae_ina'nis",
+          "general:ninomae ina'nis (casual)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "cumdrip",
+        "category": "general",
+        "variants": [
+          "general:cum drip"
         ],
         "confidence": 0.95
       },
@@ -153,18 +198,26 @@
         "confidence": 0.95
       },
       {
-        "canonical": "after_sex",
+        "canonical": "mole",
         "category": "general",
         "variants": [
-          "general:aftersex"
+          "general:mole (marking)"
         ],
         "confidence": 0.95
       },
       {
-        "canonical": "cumdrip",
+        "canonical": "sex_toy",
         "category": "general",
         "variants": [
-          "general:cum drip"
+          "general:sextoy"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "human",
+        "category": "general",
+        "variants": [
+          "character:human (world of warcraft)"
         ],
         "confidence": 0.95
       },
@@ -192,6 +245,7 @@
         "variants": [
           "general:tenma maemi",
           "character:tenma maemi (1st costume)",
+          "character:tenma_maemi",
           "general:tenmamaemi",
           "character:tenma maemi (2nd costume)",
           "general:tenma maemi (3rd costume)"
@@ -199,10 +253,26 @@
         "confidence": 0.95
       },
       {
-        "canonical": "mole",
+        "canonical": "swimsuit",
         "category": "general",
         "variants": [
-          "general:mole (marking)"
+          "general:swim_suit"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "one_eye_closed",
+        "category": "general",
+        "variants": [
+          "general:one-eye closed"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "belly_button",
+        "category": "general",
+        "variants": [
+          "general:bellybutton"
         ],
         "confidence": 0.95
       },
@@ -215,9 +285,9 @@
           "character:irys (maid) (hololive)",
           "general:irys (casualrys) (hololive)",
           "character:irys (casualrys) (hololive)",
+          "character:irys (gaming casual) (hololive)",
           "general:irys (maid) (hololive)",
           "character:irys (irys 1.0) (hololive)",
-          "character:irys (gaming casual) (hololive)",
           "character:irys (holonatsu paradise) (hololive)"
         ],
         "confidence": 0.95
@@ -230,12 +300,12 @@
           "character:dokibird (bounty hunter)",
           "character:dokibird (vtuber) (bounty hunter)",
           "character:dokibird (summer)",
-          "general:dokibird (vtuber) (summer)",
-          "character:dokibird (vtuber) (retro doki)",
           "character:dokibird (retro doki)",
+          "general:dokibird (vtuber) (summer)",
+          "character:dokibird (1st costume)",
+          "character:dokibird (vtuber) (retro doki)",
           "general:dokibird (summer)",
-          "character:dokibird (school outfit)",
-          "character:dokibird (1st costume)"
+          "character:dokibird (school outfit)"
         ],
         "confidence": 0.95
       },
@@ -251,50 +321,10 @@
         "confidence": 0.95
       },
       {
-        "canonical": "belly_button",
-        "category": "general",
-        "variants": [
-          "general:bellybutton"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "sex_toy",
-        "category": "general",
-        "variants": [
-          "general:sextoy"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "one_eye_closed",
-        "category": "general",
-        "variants": [
-          "general:one-eye closed"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "swimsuit",
-        "category": "general",
-        "variants": [
-          "general:swim_suit"
-        ],
-        "confidence": 0.95
-      },
-      {
         "canonical": "hairbow",
         "category": "general",
         "variants": [
           "general:hair bow"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "black_thighhighs",
-        "category": "general",
-        "variants": [
-          "general:black thigh highs"
         ],
         "confidence": 0.95
       },
@@ -308,11 +338,51 @@
         "confidence": 0.95
       },
       {
-        "canonical": "character:outis_(limbus_company)",
-        "category": "character",
+        "canonical": "black_thighhighs",
+        "category": "general",
         "variants": [
-          "character:outis (project moon)",
-          "general:outis"
+          "general:black thigh highs"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "doggy_style",
+        "category": "general",
+        "variants": [
+          "general:doggystyle"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "cat_girl",
+        "category": "general",
+        "variants": [
+          "general:catgirl"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "big_ass",
+        "category": "general",
+        "variants": [
+          "general:big ass (female)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "fox_girl",
+        "category": "general",
+        "variants": [
+          "general:foxgirl"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "star_(symbol)",
+        "category": "general",
+        "variants": [
+          "general:star (sky)",
+          "general:star"
         ],
         "confidence": 0.95
       },
@@ -336,10 +406,65 @@
         "confidence": 0.95
       },
       {
-        "canonical": "doggy_style",
+        "canonical": "character:outis_(limbus_company)",
+        "category": "character",
+        "variants": [
+          "character:outis (project moon)",
+          "general:outis"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "steam",
         "category": "general",
         "variants": [
-          "general:doggystyle"
+          "copyright:steam (software)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "character:gawr_gura",
+        "category": "character",
+        "variants": [
+          "character:gawr gura (1st costume)",
+          "character:gawr gura (casual)",
+          "general:gawr gura (6th costume)",
+          "character:gawr gura (school uniform)",
+          "general:gawr gura (cosplay)",
+          "general:gawr gura (winter casual)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "character:ouro_kronii",
+        "category": "character",
+        "variants": [
+          "character:ouro kronii (maid)",
+          "character:ouro kronii (1st costume)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "character:dizzy_dokuro",
+        "category": "character",
+        "variants": [
+          "general:dizzydokuro",
+          "character:dizzy dokuro (nurse)",
+          "character:dizzy dokuro (haunted nurse)",
+          "general:dizzy dokuro (nurse)",
+          "character:dizzy dokuro (2nd costume)",
+          "character:dizzy_dokuro",
+          "character:dizzy dokuro (haunted nurse alt.)",
+          "character:dizzydokuro",
+          "character:dizzy dokuro (project wish)"
+        ],
+        "confidence": 0.95
+      },
+      {
+        "canonical": "copyright:league_of_legends",
+        "category": "copyright",
+        "variants": [
+          "copyright:league_of_legends"
         ],
         "confidence": 0.95
       },
@@ -357,87 +482,10 @@
         "confidence": 0.95
       },
       {
-        "canonical": "cat_girl",
+        "canonical": "missionary",
         "category": "general",
         "variants": [
-          "general:catgirl"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "character:ouro_kronii",
-        "category": "character",
-        "variants": [
-          "character:ouro kronii (maid)",
-          "character:ouro kronii (1st costume)"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "star_(symbol)",
-        "category": "general",
-        "variants": [
-          "general:star (sky)",
-          "general:star"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "character:muu_muyu",
-        "category": "character",
-        "variants": [
-          "general:muu muyu",
-          "general:muu_muyu",
-          "general:muumuyu"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "character:dizzy_dokuro",
-        "category": "character",
-        "variants": [
-          "general:dizzydokuro",
-          "character:dizzy dokuro (nurse)",
-          "character:dizzy dokuro (haunted nurse)",
-          "character:dizzy dokuro (2nd costume)",
-          "character:dizzy_dokuro",
-          "character:dizzy dokuro (haunted nurse alt.)",
-          "character:dizzydokuro",
-          "character:dizzy dokuro (project wish)",
-          "general:dizzy dokuro (nurse)"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "fox_girl",
-        "category": "general",
-        "variants": [
-          "general:foxgirl"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "character:gawr_gura",
-        "category": "character",
-        "variants": [
-          "character:gawr gura (1st costume)",
-          "character:gawr gura (casual)",
-          "general:gawr gura (6th costume)",
-          "character:gawr gura (school uniform)",
-          "general:gawr gura (winter casual)"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "character:elira_pendora",
-        "category": "character",
-        "variants": [
-          "character:elira pendora (2nd costume)",
-          "character:elira pendora (1st costume)",
-          "character:elira pendora (3rd costume)",
-          "character:elira pendora (4th costume)",
-          "general:elira pendora (cosplay)",
-          "general:elira pendora (1st costume)"
+          "general:missionary (legs up)"
         ],
         "confidence": 0.95
       },
@@ -455,6 +503,7 @@
         "variants": [
           "character:mori calliope (1st costume)",
           "general:mori calliope (holonatsu paradise)",
+          "character:mori calliope (sheriff)",
           "general:mori calliope (rock bunny)",
           "general:mori calliope (party dress)",
           "character:mori calliope (streetwear)",
@@ -464,48 +513,12 @@
         "confidence": 0.95
       },
       {
-        "canonical": "character:nanashi_mumei",
+        "canonical": "character:muu_muyu",
         "category": "character",
         "variants": [
-          "character:nanashi mumei (emo)",
-          "character:nanashi mumei (1st costume)",
-          "character:nanashi mumei (4th costume)",
-          "character:nanashi mumei (3rd costume)",
-          "character:nanashi_mumei"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "virtual_youtuber",
-        "category": "meta",
-        "variants": [
-          "virtual youtuber",
-          "virtual YouTuber"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "hololive",
-        "category": "copyright",
-        "variants": [
-          "Hololive"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "cum",
-        "category": "general",
-        "variants": [
-          "Cum"
-        ],
-        "confidence": 0.95
-      },
-      {
-        "canonical": "vtuber",
-        "category": "meta",
-        "variants": [
-          "VTuber",
-          "Vtuber"
+          "general:muu muyu",
+          "general:muu_muyu",
+          "general:muumuyu"
         ],
         "confidence": 0.95
       }
@@ -657,6 +670,11 @@
         "count": 5
       },
       {
+        "tag": "general:sехual",
+        "reason": "Contains non-ASCII characters",
+        "count": 5
+      },
+      {
         "tag": "general:フェラ",
         "reason": "Contains non-ASCII characters",
         "count": 4
@@ -755,17 +773,12 @@
         "tag": "general:けもみみ",
         "reason": "Contains non-ASCII characters",
         "count": 2
-      },
-      {
-        "tag": "general:魔法少女にあこがれて",
-        "reason": "Contains non-ASCII characters",
-        "count": 2
       }
     ],
     "dismissed": {
       "aliases": [],
       "garbage": []
     },
-    "lastRun": "2026-01-13T03:06:09.283Z"
+    "lastRun": "2026-01-25T00:32:48.809Z"
   }
 }

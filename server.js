@@ -8,7 +8,14 @@ const glob = require('glob');
 const fs = require('fs').promises;
 
 const TagProcessor = require('./tag-processor');
+const TagAnalyzer = require('./tag-analyzer');
+const DatabaseAnalyzer = require('./db-analyzer');
 const tagProcessor = new TagProcessor('./tag-taxonomy.json');
+
+// Constants
+const STAGING_DIR = 'C:\\Users\\zalka\\Downloads\\TagSaver';
+const TAXONOMY_FILE = path.join(__dirname, 'tag-taxonomy.json');
+const TRASH_DIR = path.join(STAGING_DIR, '.trash');
 
 const app = express();
 const PORT = 3737; // Fixed port for the extension to connect to
@@ -84,7 +91,6 @@ async function initDatabase() {
     
     PRAGMA wal_autocheckpoint = 0;
     PRAGMA checkpoint_fullfsync = 0;
-    PRAGMA locking_mode = EXCLUSIVE;
     PRAGMA count_changes = 0;
 
     PRAGMA optimize;
@@ -412,7 +418,7 @@ async function processBatchTagsAutocommit(imageId, tags) {
   const start = process.hrtime.bigint();
   
   // PROCESS TAGS THROUGH TAXONOMY
-  const processedTags = tagProcessor.processTags(tags);
+  const processedTags = tags;//tagProcessor.processTags(tags);
 
   // Prepare tag data
   const tagData = processedTags.map(tagString => {
@@ -479,6 +485,488 @@ async function processBatchTagsAutocommit(imageId, tags) {
   tagCache.invalidate();
   const time = Number(process.hrtime.bigint() - start) / 1000000;
   console.log(`✅ Autocommit tags completed in ${time.toFixed(2)}ms`);
+}
+
+// ============================================
+// TAXONOMY/CONFIG MANAGEMENT
+// ============================================
+/**
+ * Load or initialize tag taxonomy
+ */
+async function loadOrInitializeTaxonomy() {
+  try {
+    const data = await fs.readFile(TAXONOMY_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.log('📝 tag-taxonomy.json not found, creating with initial analysis...');
+      
+      // Create empty structure
+      const emptyTaxonomy = {
+        aliases: {},
+        exclusions: {
+          blacklist: [],
+          whitelist: []
+        },
+        hierarchy: {},
+        suggestions: {
+          aliases: [],
+          garbage: [],
+          dismissed: {
+            aliases: [],
+            garbage: []
+          },
+          lastRun: null
+        }
+      };
+      
+      await fs.writeFile(TAXONOMY_FILE, JSON.stringify(emptyTaxonomy, null, 2));
+      
+      // Run initial analysis
+      const suggestions = await runTagAnalysis();
+      emptyTaxonomy.suggestions = suggestions;
+      await fs.writeFile(TAXONOMY_FILE, JSON.stringify(emptyTaxonomy, null, 2));
+      
+      return emptyTaxonomy;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Save taxonomy to disk
+ */
+async function saveTaxonomy(taxonomy) {
+  await fs.writeFile(TAXONOMY_FILE, JSON.stringify(taxonomy, null, 2));
+  // Reload in tag processor
+  await tagProcessor.reloadConfig();
+}
+
+/**
+ * Run tag analysis and generate suggestions
+ */
+async function runTagAnalysis() {
+  console.log('🔍 Running tag analysis...');
+  
+  try {
+    // Load current taxonomy to get dismissed suggestions
+    let currentTaxonomy;
+    try {
+      const data = await fs.readFile(TAXONOMY_FILE, 'utf8');
+      currentTaxonomy = JSON.parse(data);
+    } catch (error) {
+      currentTaxonomy = {
+        aliases: {},
+        exclusions: { blacklist: [], whitelist: [] },
+        hierarchy: {},
+        suggestions: { dismissed: { aliases: [], garbage: [] } }
+      };
+    }
+    
+    const existingAliases = new Set();
+    for (const [canonicalTag, data] of Object.entries(currentTaxonomy.aliases || {})) {
+      // canonicalTag is already like "meta:virtual_youtuber" or "tagname"
+      existingAliases.add(canonicalTag.toLowerCase());
+      
+      // Also add all variants so they don't get re-suggested
+      if (data.variants && Array.isArray(data.variants)) {
+        for (const variant of data.variants) {
+          existingAliases.add(variant.toLowerCase());
+        }
+      }
+    }
+    const blacklist = new Set(currentTaxonomy.exclusions?.blacklist || []);
+    const whitelist = new Set(currentTaxonomy.exclusions?.whitelist || []);
+    const dismissedAliases = new Set(currentTaxonomy.suggestions?.dismissed?.aliases || []);
+    const dismissedGarbage = new Set(currentTaxonomy.suggestions?.dismissed?.garbage || []);
+    
+    // 1. Analyze staging JSON files
+    const fileAnalyzer = new TagAnalyzer(STAGING_DIR);
+    await fileAnalyzer.scanDirectory();
+    fileAnalyzer.analyze();
+    const fileReport = fileAnalyzer.generateReport();
+    
+    // 2. Analyze database
+    const dbAnalyzer = new DatabaseAnalyzer(DB_PATH);
+    await dbAnalyzer.connect();
+    const dbVariations = await dbAnalyzer.findPotentialVariations({ skipCategories: [] });
+    dbAnalyzer.close();
+    
+    // 3. Merge and filter suggestions
+    const aliasSuggestions = [];
+    const garbageSuggestions = [];
+    
+    // Process file analyzer inconsistent naming
+    for (const issue of fileReport.issues.inconsistentNaming) {
+      const canonical = issue.suggestedCanonical;
+      const { category, name: canonicalName } = parseTagName(canonical);
+      const normalizedName = canonicalName.toLowerCase().replace(/[\s-]+/g, '_');
+      const fullTag = category && category !== 'general' ? `${category}:${normalizedName}` : normalizedName;
+
+      if (existingAliases.has(fullTag)) continue;
+      if (dismissedAliases.has(fullTag)) continue;
+      if (blacklist.has(canonical) || whitelist.has(canonical)) continue;
+      
+      // Extract variants (excluding the canonical itself)
+      const variants = issue.variants
+        .filter(v => v.tag !== canonical)
+        .map(v => v.tag);
+      
+      if (variants.length > 0) {
+        const { category } = parseTagName(canonical);
+        const normalizedName = canonicalName.toLowerCase().replace(/[\s-]+/g, '_');
+        const fullCanonical = category && category !== 'general' 
+          ? `${category}:${normalizedName}` 
+          : normalizedName;
+        
+        aliasSuggestions.push({
+          canonical: fullCanonical,  // Store WITH category prefix
+          category,
+          variants,
+          confidence: Math.min(0.95, issue.totalOccurrences / 100)
+        });
+      }
+    }
+    
+    // Process database variations
+    for (const dup of dbVariations) {
+      const canonical = dup.canonical;
+      
+      // Parse and normalize
+      const { category, name } = parseTagName(canonical);
+      const normalizedName = name.toLowerCase().replace(/[\s-]+/g, '_');
+      
+      // Reconstruct full tag for comparison
+      const fullTag = category && category !== 'general' ? `${category}:${normalizedName}` : normalizedName;
+
+      // Skip if already in user config or dismissed
+      if (existingAliases.has(fullTag)) continue;
+      if (dismissedAliases.has(fullTag)) continue;
+      if (blacklist.has(canonical) || whitelist.has(canonical)) continue;
+      
+      // Check if we already have this suggestion from file analysis
+      const existing = aliasSuggestions.find(s => s.canonical === canonical);
+      if (existing) continue;
+      
+      const variants = dup.variants
+        .filter(v => v.original !== canonical)
+        .map(v => v.original);
+      
+      if (variants.length > 0 && dup.variants.length > 1) {
+        const category = dup.variants[0].category || 'general';
+        const totalCount = dup.variants.reduce((sum, v) => sum + v.count, 0);
+        
+        aliasSuggestions.push({
+          canonical: canonical.toLowerCase().replace(/[\s-]+/g, '_'),
+          category,
+          variants,
+          confidence: Math.min(0.95, totalCount / 50)
+        });
+      }
+    }
+    
+    // Process garbage suggestions
+    for (const issue of fileReport.issues.likelyGarbage) {
+      const tag = issue.tag;
+      
+      // Skip if in whitelist or dismissed
+      if (whitelist.has(tag)) continue;
+      if (dismissedGarbage.has(tag)) continue;
+      if (blacklist.has(tag)) continue; // Already blacklisted
+      
+      garbageSuggestions.push({
+        tag,
+        reason: issue.reason,
+        count: issue.count
+      });
+    }
+    
+    // Sort suggestions by confidence/count
+    aliasSuggestions.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+    garbageSuggestions.sort((a, b) => b.count - a.count);
+    
+    console.log(`✅ Analysis complete: ${aliasSuggestions.length} alias suggestions, ${garbageSuggestions.length} garbage suggestions`);
+    
+    return {
+      aliases: aliasSuggestions.slice(0, 50), // Limit to top 50
+      garbage: garbageSuggestions.slice(0, 50),
+      dismissed: currentTaxonomy.suggestions?.dismissed || { aliases: [], garbage: [] },
+      lastRun: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('❌ Analysis failed:', error);
+    return {
+      aliases: [],
+      garbage: [],
+      dismissed: { aliases: [], garbage: [] },
+      lastRun: new Date().toISOString()
+    };
+  }
+}
+
+/**
+ * Parse tag into category and name
+ */
+function parseTagName(tag) {
+  if (tag && tag.includes(':')) {
+    const [category, ...rest] = tag.split(':');
+    return { category, name: rest.join(':') };
+  }
+  return { category: 'general', name: tag || '' };
+}
+
+// ============================================
+// STAGING AREA MANAGEMENT
+// ============================================
+
+/**
+ * Scan staging directory and return image metadata
+ */
+async function scanStagingDirectory(limit = 50, offset = 0) {
+  try {
+    // Find all JSON files
+    const jsonFiles = glob.sync(`${STAGING_DIR}/**/*.json`);
+    
+    // Skip trash directory
+    const validFiles = jsonFiles.filter(f => !f.includes('.trash'));
+    
+    // Sort by modification time (newest first)
+    const filesWithStats = await Promise.all(
+      validFiles.map(async (file) => {
+        const stats = await fs.stat(file);
+        return { file, mtime: stats.mtime };
+      })
+    );
+    
+    filesWithStats.sort((a, b) => b.mtime - a.mtime);
+    
+    // Paginate
+    const total = filesWithStats.length;
+    const paginatedFiles = filesWithStats.slice(offset, offset + limit);
+    
+    // Load metadata for each
+    const images = await Promise.all(
+      paginatedFiles.map(async ({ file }) => {
+        try {
+          const jsonData = JSON.parse(await fs.readFile(file, 'utf8'));
+          const id = path.basename(file, '.json');
+          
+          // Find corresponding image file
+          const baseName = file.replace('.json', '');
+          const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+          let imagePath = null;
+          
+          for (const ext of imageExts) {
+            const testPath = baseName + ext;
+            try {
+              await fs.access(testPath);
+              imagePath = testPath;
+              break;
+            } catch (e) {
+              // File doesn't exist, try next extension
+            }
+          }
+          
+          // Extract tags
+          let tags = [];
+          let tagCount = 0;
+          
+          if (jsonData.tags) {
+            if (Array.isArray(jsonData.tags)) {
+              tags = jsonData.tags;
+              tagCount = tags.length;
+            } else if (typeof jsonData.tags === 'object') {
+              for (const [category, tagList] of Object.entries(jsonData.tags)) {
+                if (Array.isArray(tagList)) {
+                  tagCount += tagList.length;
+                  for (const tag of tagList) {
+                    tags.push(category === 'general' ? tag : `${category}:${tag}`);
+                  }
+                }
+              }
+            }
+          }
+          
+          return {
+            id,
+            filename: path.basename(imagePath || file),
+            filePath: imagePath,
+            jsonPath: file,
+            tags,
+            tagCount,
+            sourceUrl: jsonData.sourceUrl,
+            imageUrl: jsonData.imageUrl,
+            poolId: jsonData.poolId || null,
+            poolIndex: jsonData.poolIndex || null,
+            phash: jsonData.imageHash,
+            mediaType: jsonData.mediaType || 'image',
+            timestamp: jsonData.timestamp
+          };
+        } catch (error) {
+          console.error(`Error loading ${file}:`, error);
+          return null;
+        }
+      })
+    );
+    
+    return {
+      images: images.filter(img => img !== null),
+      hasMore: offset + limit < total,
+      total
+    };
+  } catch (error) {
+    console.error('Error scanning staging directory:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load a single staging image by ID
+ */
+async function loadStagingImage(id) {
+  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  
+  try {
+    const jsonData = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+    
+    // Find corresponding image
+    const baseName = jsonPath.replace('.json', '');
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+    let imagePath = null;
+    
+    for (const ext of imageExts) {
+      const testPath = baseName + ext;
+      try {
+        await fs.access(testPath);
+        imagePath = testPath;
+        break;
+      } catch (e) {
+        // Continue
+      }
+    }
+    
+    // Extract tags
+    let tags = [];
+    if (jsonData.tags) {
+      if (Array.isArray(jsonData.tags)) {
+        tags = jsonData.tags;
+      } else if (typeof jsonData.tags === 'object') {
+        for (const [category, tagList] of Object.entries(jsonData.tags)) {
+          if (Array.isArray(tagList)) {
+            for (const tag of tagList) {
+              tags.push(category === 'general' ? tag : `${category}:${tag}`);
+            }
+          }
+        }
+      }
+    }
+    
+    return {
+      id,
+      filename: path.basename(imagePath || jsonPath),
+      filePath: imagePath,
+      jsonPath,
+      tags,
+      sourceUrl: jsonData.sourceUrl,
+      imageUrl: jsonData.imageUrl,
+      poolId: jsonData.poolId || null,
+      poolIndex: jsonData.poolIndex || null,
+      phash: jsonData.imageHash,
+      mediaType: jsonData.mediaType || 'image',
+      timestamp: jsonData.timestamp
+    };
+  } catch (error) {
+    console.error(`Error loading staging image ${id}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Update staging image metadata
+ */
+async function updateStagingImage(id, updates) {
+  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  
+  try {
+    // Load existing data
+    const jsonData = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+    
+    // Update fields
+    if (updates.sourceUrl !== undefined) jsonData.sourceUrl = updates.sourceUrl;
+    if (updates.poolId !== undefined) jsonData.poolId = updates.poolId;
+    if (updates.poolIndex !== undefined) jsonData.poolIndex = updates.poolIndex;
+    
+    // Handle tags - convert to categorized format
+    if (updates.tags !== undefined) {
+      const categorized = {
+        artist: [],
+        character: [],
+        copyright: [],
+        general: [],
+        meta: []
+      };
+      
+      for (const tag of updates.tags) {
+        const { category, name } = parseTagName(tag);
+        if (categorized[category]) {
+          categorized[category].push(name);
+        } else {
+          categorized.general.push(tag);
+        }
+      }
+      
+      jsonData.tags = categorized;
+    }
+    
+    // Write back
+    await fs.writeFile(jsonPath, JSON.stringify(jsonData, null, 2));
+    
+    return true;
+  } catch (error) {
+    console.error(`Error updating staging image ${id}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Delete staging image (move to trash)
+ */
+async function deleteStagingImage(id) {
+  try {
+    // Ensure trash directory exists
+    await fs.mkdir(TRASH_DIR, { recursive: true });
+    
+    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+    const baseName = jsonPath.replace('.json', '');
+    
+    // Find and move JSON
+    try {
+      const trashJsonPath = path.join(TRASH_DIR, `${id}.json`);
+      await fs.rename(jsonPath, trashJsonPath);
+    } catch (error) {
+      console.error(`Failed to move JSON to trash:`, error);
+    }
+    
+    // Find and move image
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+    for (const ext of imageExts) {
+      const imagePath = baseName + ext;
+      try {
+        await fs.access(imagePath);
+        const trashImagePath = path.join(TRASH_DIR, `${id}${ext}`);
+        await fs.rename(imagePath, trashImagePath);
+        break;
+      } catch (e) {
+        // File doesn't exist, try next
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error deleting staging image ${id}:`, error);
+    return false;
+  }
 }
 
 // Updated duplicate check endpoint with similarity support
@@ -822,6 +1310,228 @@ app.get('/api/admin/tag-graph', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// ============================================
+// API ENDPOINTS
+// ============================================
+
+// GET /api/config - Get full taxonomy/config
+app.get('/api/config', async (req, res) => {
+  try {
+    const taxonomy = await loadOrInitializeTaxonomy();
+    res.json(taxonomy);
+  } catch (error) {
+    console.error('Error loading config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/config/aliases - Update aliases
+app.put('/api/config/aliases', async (req, res) => {
+  try {
+    const taxonomy = await loadOrInitializeTaxonomy();
+    taxonomy.aliases = req.body;
+    await saveTaxonomy(taxonomy);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving aliases:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/config/exclusions - Update exclusions
+app.put('/api/config/exclusions', async (req, res) => {
+  try {
+    const taxonomy = await loadOrInitializeTaxonomy();
+    taxonomy.exclusions = req.body;
+    await saveTaxonomy(taxonomy);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving exclusions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/config/hierarchy - Update hierarchy
+app.put('/api/config/hierarchy', async (req, res) => {
+  try {
+    const taxonomy = await loadOrInitializeTaxonomy();
+    taxonomy.hierarchy = req.body;
+    await saveTaxonomy(taxonomy);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving hierarchy:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/config/analyze - Run tag analysis
+app.post('/api/config/analyze', async (req, res) => {
+  try {
+    const suggestions = await runTagAnalysis();
+    
+    // Update taxonomy with new suggestions
+    const taxonomy = await loadOrInitializeTaxonomy();
+    taxonomy.suggestions = suggestions;
+    await saveTaxonomy(taxonomy);
+    
+    res.json({
+      success: true,
+      newSuggestions: {
+        aliases: suggestions.aliases.length,
+        garbage: suggestions.garbage.length
+      }
+    });
+  } catch (error) {
+    console.error('Error running analysis:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/staging/images - List staging images (paginated)
+app.get('/api/staging/images', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    const result = await scanStagingDirectory(limit, offset);
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing staging images:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/staging/images/:id - Get single staging image metadata
+app.get('/api/staging/images/:id', async (req, res) => {
+  try {
+    const image = await loadStagingImage(req.params.id);
+    
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    res.json(image);
+  } catch (error) {
+    console.error('Error loading staging image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/staging/images/:id - Update staging image
+app.put('/api/staging/images/:id', async (req, res) => {
+  try {
+    const success = await updateStagingImage(req.params.id, req.body);
+    
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to update image' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating staging image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/staging/images/:id - Delete staging image
+app.delete('/api/staging/images/:id', async (req, res) => {
+  try {
+    const success = await deleteStagingImage(req.params.id);
+    
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to delete image' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting staging image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/staging/image/:id - Get full-size image
+app.get('/api/staging/image/:id', async (req, res) => {
+  try {
+    const image = await loadStagingImage(req.params.id);
+    
+    if (!image || !image.filePath) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    res.sendFile(image.filePath);
+  } catch (error) {
+    console.error('Error serving image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/staging/thumbnail/:id - Get thumbnail
+app.get('/api/staging/thumbnail/:id', async (req, res) => {
+  try {
+    const size = parseInt(req.query.size) || 200;
+    const image = await loadStagingImage(req.params.id);
+    
+    if (!image || !image.filePath) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // For videos, return placeholder or first frame
+    if (image.mediaType === 'video') {
+      // TODO: Extract video thumbnail
+      return res.status(501).json({ error: 'Video thumbnails not yet implemented' });
+    }
+    
+    // Generate thumbnail using sharp
+    const thumbnail = await sharp(image.filePath)
+      .resize(size, size, { fit: 'inside' })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    
+    res.type('image/jpeg');
+    res.send(thumbnail);
+  } catch (error) {
+    console.error('Error generating thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/stats - Get statistics
+app.get('/api/stats', async (req, res) => {
+  try {
+    // Count staging images
+    const staging = await scanStagingDirectory(1, 0);
+    
+    // Count unique tags in database
+    const tagCount = await promiseDb('SELECT COUNT(*) as count FROM tags');
+    
+    res.json({
+      imageCount: staging.total,
+      uniqueTags: tagCount[0].count
+    });
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/health - Health check (rename from /api/status)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
+module.exports = {
+  loadOrInitializeTaxonomy,
+  saveTaxonomy,
+  runTagAnalysis,
+  scanStagingDirectory,
+  loadStagingImage,
+  updateStagingImage,
+  deleteStagingImage
+};
 
 // Save updated taxonomy
 app.post('/api/admin/tag-graph', async (req, res) => {
@@ -864,9 +1574,17 @@ app.use((err, req, res, next) => {
 async function startServer() {
   await initDatabase();
   
+  try {
+    await loadOrInitializeTaxonomy();
+    console.log('  Tag taxonomy initialized');
+  } catch (error) {
+    console.error('  Tag taxonomy initialization failed:', error);
+  }
+
   app.listen(PORT, 'localhost', () => {
     console.log(`Tag Saver Server running on http://localhost:${PORT}`);
     console.log(`Database: ${DB_PATH}`);
+    console.log(`Staging: ${STAGING_DIR}`);
     console.log('API endpoints:');
     console.log('  POST /api/images - Save image with tags');
     console.log('  GET  /api/images/check-duplicate/:hash - Check duplicate');
@@ -874,6 +1592,10 @@ async function startServer() {
     console.log('  GET  /api/pools/:id/highest-index - Get pool info');
     console.log('  GET  /api/export - Export all data');
     console.log('  GET  /api/status - Server status');
+    console.log('  GET  /api/config - Get taxonomy config');
+    console.log('  POST /api/config/analyze - Run tag analysis');
+    console.log('  GET  /api/staging/images - List staging images');
+    console.log('  GET  /api/health - Server health check');
   });
 
   try {
