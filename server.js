@@ -10,7 +10,24 @@ const fs = require('fs').promises;
 const TagProcessor = require('./tag-processor');
 const TagAnalyzer = require('./tag-analyzer');
 const DatabaseAnalyzer = require('./db-analyzer');
+const { DanbooruUploader } = require('./danbooru-uploader');
 const tagProcessor = new TagProcessor('./tag-taxonomy.json');
+
+const booruUploader = new DanbooruUploader({
+  baseUrl:  process.env.DANBOORU_URL  || 'http://192.168.0.205:3000',
+  username: process.env.DANBOORU_USER || 'kyabatsu',
+  apiKey:   process.env.DANBOORU_KEY  || 'EPBFXUJbxWFsBPq2QZaf7TcY',
+});
+
+// Public URL is what we return to the UI for "view on booru" links.
+// If you reverse-proxy later, set DANBOORU_PUBLIC_URL separately.
+const BOORU_PUBLIC_URL = (
+  process.env.DANBOORU_PUBLIC_URL ||
+  process.env.DANBOORU_URL ||
+  'http://192.168.0.205:3000'
+).replace(/\/$/, '');
+
+const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
 
 // Constants
 const STAGING_DIR = 'C:\\Users\\zalka\\Downloads\\TagSaver';
@@ -723,55 +740,82 @@ function parseTagName(tag) {
 /**
  * Scan staging directory and return image metadata
  */
-async function scanStagingDirectory(limit = 50, offset = 0) {
+async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest') {
   try {
-    // Find all JSON files
     const jsonFiles = glob.sync(`${STAGING_DIR}/**/*.json`);
-    
-    // Skip trash directory
     const validFiles = jsonFiles.filter(f => !f.includes('.trash'));
-    
-    // Sort by modification time (newest first)
-    const filesWithStats = await Promise.all(
+
+    // Build a sortable record for every file. For mtime sorts that's just
+    // a stat; for tag-count sorts we have to read the JSON.
+    const needsJson = sort === 'tags-desc' || sort === 'tags-asc';
+
+    const records = await Promise.all(
       validFiles.map(async (file) => {
         const stats = await fs.stat(file);
-        return { file, mtime: stats.mtime };
+        const record = { file, mtime: stats.mtime, tagCount: 0 };
+
+        if (needsJson) {
+          try {
+            const json = JSON.parse(await fs.readFile(file, 'utf8'));
+            if (json.tags) {
+              if (Array.isArray(json.tags)) {
+                record.tagCount = json.tags.length;
+              } else if (typeof json.tags === 'object') {
+                for (const list of Object.values(json.tags)) {
+                  if (Array.isArray(list)) record.tagCount += list.length;
+                }
+              }
+            }
+          } catch {
+            // Unreadable JSON ranks as 0 tags — better than crashing the page.
+          }
+        }
+        return record;
       })
     );
-    
-    filesWithStats.sort((a, b) => b.mtime - a.mtime);
-    
-    // Paginate
-    const total = filesWithStats.length;
-    const paginatedFiles = filesWithStats.slice(offset, offset + limit);
-    
-    // Load metadata for each
+
+    // Apply sort
+    switch (sort) {
+      case 'oldest':
+        records.sort((a, b) => a.mtime - b.mtime);
+        break;
+      case 'tags-desc':
+        records.sort((a, b) => b.tagCount - a.tagCount || b.mtime - a.mtime);
+        break;
+      case 'tags-asc':
+        records.sort((a, b) => a.tagCount - b.tagCount || b.mtime - a.mtime);
+        break;
+      case 'newest':
+      default:
+        records.sort((a, b) => b.mtime - a.mtime);
+        break;
+    }
+
+    const total = records.length;
+    const paginated = records.slice(offset, offset + limit);
+
     const images = await Promise.all(
-      paginatedFiles.map(async ({ file }) => {
+      paginated.map(async ({ file }) => {
         try {
           const jsonData = JSON.parse(await fs.readFile(file, 'utf8'));
           const id = path.basename(file, '.json');
-          
-          // Find corresponding image file
+
           const baseName = file.replace('.json', '');
           const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
           let imagePath = null;
-          
           for (const ext of imageExts) {
             const testPath = baseName + ext;
             try {
               await fs.access(testPath);
               imagePath = testPath;
               break;
-            } catch (e) {
-              // File doesn't exist, try next extension
+            } catch {
+              // try next ext
             }
           }
-          
-          // Extract tags
+
           let tags = [];
           let tagCount = 0;
-          
           if (jsonData.tags) {
             if (Array.isArray(jsonData.tags)) {
               tags = jsonData.tags;
@@ -787,7 +831,7 @@ async function scanStagingDirectory(limit = 50, offset = 0) {
               }
             }
           }
-          
+
           return {
             id,
             filename: path.basename(imagePath || file),
@@ -801,7 +845,11 @@ async function scanStagingDirectory(limit = 50, offset = 0) {
             poolIndex: jsonData.poolIndex || null,
             phash: jsonData.imageHash,
             mediaType: jsonData.mediaType || 'image',
-            timestamp: jsonData.timestamp
+            timestamp: jsonData.timestamp,
+            booruPostId: jsonData.booruPostId || null,
+            booruPublicUrl: jsonData.booruPostId
+              ? `${BOORU_PUBLIC_URL}/posts/${jsonData.booruPostId}`
+              : null,
           };
         } catch (error) {
           console.error(`Error loading ${file}:`, error);
@@ -809,11 +857,11 @@ async function scanStagingDirectory(limit = 50, offset = 0) {
         }
       })
     );
-    
+
     return {
-      images: images.filter(img => img !== null),
+      images: images.filter(Boolean),
       hasMore: offset + limit < total,
-      total
+      total,
     };
   } catch (error) {
     console.error('Error scanning staging directory:', error);
@@ -968,6 +1016,477 @@ async function deleteStagingImage(id) {
     return false;
   }
 }
+
+/**
+ * Load everything we need to upload one staging item:
+ *   - raw categorized JSON (uploader.processTags expects this shape)
+ *   - the matching image file path
+ *
+ * Throws if the JSON is missing/unreadable or no image with a known
+ * extension sits next to it. The route turns these into per-id failures.
+ */
+async function loadBooruJob(id) {
+  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const metadata = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+ 
+  const baseName = jsonPath.replace(/\.json$/, '');
+  for (const ext of BOORU_IMAGE_EXTS) {
+    const candidate = baseName + ext;
+    try {
+      await fs.access(candidate);
+      return { id, jsonPath, imagePath: candidate, metadata };
+    } catch {
+      // try next extension
+    }
+  }
+  throw new Error('Image file not found');
+}
+ 
+/**
+ * Resolve body into a flat list of staging IDs.
+ * Returns [] if nothing to upload (route validates inputs upstream).
+ */
+async function resolveBooruTargetIds({ ids, all, force }) {
+  if (Array.isArray(ids) && ids.length > 0) return ids;
+  if (!all) return [];
+ 
+  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const out = [];
+  for (const file of files) {
+    try {
+      const json = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (force || !json.booruPostId) {
+        out.push(path.basename(file, '.json'));
+      }
+    } catch {
+      // skip unreadable
+    }
+  }
+  return out;
+}
+
+ 
+/**
+ * For each pool we're about to upload into, find an already-uploaded
+ * sibling outside this batch — its post ID becomes the parent_id.
+ */
+async function findExistingPoolParents(poolIds) {
+  if (poolIds.size === 0) return new Map();
+ 
+  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const candidates = new Map(); // poolId -> { postId, poolIndex }
+ 
+  for (const file of files) {
+    try {
+      const json = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (!poolIds.has(json.poolId) || !json.booruPostId) continue;
+ 
+      const idx = json.poolIndex ?? 0;
+      const existing = candidates.get(json.poolId);
+      if (!existing || idx < existing.poolIndex) {
+        candidates.set(json.poolId, { postId: json.booruPostId, poolIndex: idx });
+      }
+    } catch {
+      // skip unreadable
+    }
+  }
+ 
+  const out = new Map();
+  for (const [poolId, info] of candidates) out.set(poolId, info.postId);
+  return out;
+}
+
+ 
+function groupAndOrderByPool(jobs) {
+  const groups = new Map();
+  for (const job of jobs) {
+    const key = job.metadata.poolId ?? null;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(job);
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => (a.metadata.poolIndex ?? 0) - (b.metadata.poolIndex ?? 0));
+  }
+  return groups;
+}
+ 
+/**
+ * Validate body shape. Returns null if OK, or an error message.
+ * Both routes call this before doing anything else.
+ */
+function validateBooruUploadBody(body) {
+  const { ids, all = false } = body || {};
+  if (Array.isArray(ids) && ids.length > 0) return null;
+  if (all) return null;
+  return 'Body must include `ids` array or `all: true`';
+}
+
+/**
+ * Run an upload batch. Calls onProgress (if provided) at three phases:
+ *   { phase: 'start', total }
+ *   { phase: 'item',  completed, total, result }   -- once per id
+ *   { phase: 'done',  total, succeeded, failed }
+ *
+ * Returns the same summary object the bulk JSON endpoint responds with.
+ * Body is assumed valid (route layer validates).
+ */
+/**
+ * UPLOAD-ONLY pass. For each target id:
+ *   - Skip if already has booruUploadId (idempotent on restarts).
+ *   - Call /uploads.json.
+ *   - Write booruUploadId + booruMediaAssetId to the sidecar.
+ *   - Emit SSE progress.
+ *
+ * Posting is the worker's job. This function returns once all uploads
+ * are done.
+ */
+async function runBooruUploads({ ids, all, force }, onProgress) {
+  const emit = onProgress || (() => {});
+  const results = [];
+  let completed = 0;
+
+  const targetIds = await resolveBooruTargetIds({ ids, all, force });
+  const total = targetIds.length;
+
+  emit({ phase: 'start', total });
+
+  if (total === 0) {
+    emit({ phase: 'done', total: 0, succeeded: 0, failed: 0 });
+    return { total: 0, succeeded: 0, failed: 0, results: [] };
+  }
+
+  for (const id of targetIds) {
+    let result;
+    try {
+      const job = await loadBooruJob(id);
+
+      if (job.metadata.booruUploadId && !force) {
+        result = {
+          id, success: true,
+          uploadAssetId: job.metadata.booruUploadId,
+          alreadyUploaded: true,
+        };
+      } else {
+        const { uploadAssetId, mediaAssetId } =
+          await booruUploader.uploadFileOnly(job.imagePath);
+
+        job.metadata.booruUploadId = uploadAssetId;
+        job.metadata.booruMediaAssetId = mediaAssetId;
+        await fs.writeFile(job.jsonPath, JSON.stringify(job.metadata, null, 2));
+
+        result = {
+          id, success: true,
+          uploadAssetId,
+          mediaAssetId,
+          alreadyUploaded: false,
+        };
+      }
+    } catch (err) {
+      result = {
+        id, success: false,
+        error: err.message,
+        phase: err.phase,
+        status: err.status,
+        body: err.body,
+      };
+    }
+
+    results.push(result);
+    completed++;
+    emit({ phase: 'item', completed, total, result });
+
+    if (completed < total) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  const succeeded = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  emit({ phase: 'done', total, succeeded, failed });
+
+  return { total, succeeded, failed, results };
+}
+
+// ============================================================
+// POST WORKER — runs concurrently with uploads, processes the
+// "uploaded but not posted" backlog from sidecars.
+// ============================================================
+
+const POST_WORKER = {
+  running: false,
+  scheduled: false,
+  AI_POLL_TIMEOUT_MS: 5000,        // give up on AI tags after this
+  AI_POLL_INTERVAL_MS: 500,
+  AI_THRESHOLDS: {
+    general: 0.25,
+    meta: 0.25,
+  },
+  POLITENESS_GAP_MS: 500,
+  MAINTENANCE_INTERVAL_MS: 5 * 60 * 1000,
+  DUPLICATE_LOG: path.join(STAGING_DIR, 'duplicate-failures.log'),
+};
+
+/**
+ * Find sidecars that have been uploaded but not yet posted.
+ * Sorted so pool members are grouped and ordered by poolIndex.
+ */
+async function findPendingPosts() {
+  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const pending = [];
+
+  for (const file of files) {
+    try {
+      const json = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (json.booruUploadId && json.booruMediaAssetId && !json.booruPostId) {
+        pending.push({
+          jsonPath: file,
+          id: path.basename(file, '.json'),
+          metadata: json,
+        });
+      }
+    } catch {
+      // skip unreadable
+    }
+  }
+
+  pending.sort((a, b) => {
+    const aPool = a.metadata.poolId || '';
+    const bPool = b.metadata.poolId || '';
+    if (aPool !== bPool) return aPool.localeCompare(bPool);
+    return (a.metadata.poolIndex ?? 0) - (b.metadata.poolIndex ?? 0);
+  });
+
+  return pending;
+}
+
+/**
+ * Block until AI tags for the asset appear, or timeout. Returns the
+ * tag array (empty if timed out).
+ */
+async function waitForAiTags(mediaAssetId) {
+  const deadline = Date.now() + POST_WORKER.AI_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const tags = await booruUploader.getAiTags(mediaAssetId);
+    if (tags.length > 0) return tags;
+    await new Promise(r => setTimeout(r, POST_WORKER.AI_POLL_INTERVAL_MS));
+  }
+  return [];
+}
+
+/**
+ * Merge AI tags into metadata.tags, in place.
+ *
+ * Rules:
+ *   - Only `general` and `meta` are merged. character / copyright /
+ *     artist / rating tags are dropped — handled manually in staging.
+ *   - `rating:*` tags from autotagger (which it labels as general)
+ *     are also dropped.
+ *   - Per-category confidence threshold from AI_THRESHOLDS.
+ */
+function mergeAiTags(metadata, aiTags) {
+  if (!metadata.tags || typeof metadata.tags !== 'object' || Array.isArray(metadata.tags)) {
+    metadata.tags = {};
+  }
+  for (const cat of ['general', 'meta']) {
+    if (!Array.isArray(metadata.tags[cat])) metadata.tags[cat] = [];
+  }
+
+  for (const aiTag of aiTags) {
+    const tag = aiTag.tag;
+    const score = aiTag.score ?? 0;
+    const category = aiTag.category || 'general';
+
+    if (category !== 'general' && category !== 'meta') continue;
+    if (tag.startsWith('rating:')) continue;
+
+    const threshold = POST_WORKER.AI_THRESHOLDS[category];
+    if (score < threshold) continue;
+
+    if (!metadata.tags[category].includes(tag)) {
+      metadata.tags[category].push(tag);
+    }
+  }
+}
+
+/** Pull a Danbooru post ID from a 422 duplicate error body. */
+function extractDuplicatePostId(body) {
+  if (!body) return null;
+  const md5Errs = body.errors?.md5;
+  if (Array.isArray(md5Errs)) {
+    for (const msg of md5Errs) {
+      const match = String(msg).match(/\/posts\/(\d+)|post #(\d+)/);
+      if (match) return parseInt(match[1] || match[2], 10);
+    }
+  }
+  if (body.post_id) return parseInt(body.post_id, 10);
+  return null;
+}
+
+/** Append one line to the duplicate-failures log. Best-effort. */
+async function logDuplicateFailure(filename, errBody) {
+  try {
+    const conflictId = extractDuplicatePostId(errBody);
+    const line = [
+      new Date().toISOString(),
+      filename,
+      conflictId ? `duplicate_of=${conflictId}` : 'duplicate_unknown',
+      JSON.stringify(errBody || {}),
+    ].join('\t') + '\n';
+    await fs.appendFile(POST_WORKER.DUPLICATE_LOG, line);
+  } catch (err) {
+    console.error('Failed to write duplicate log:', err.message);
+  }
+}
+
+/** One worker tick — drains the pending queue once. */
+async function postWorkerTick() {
+  if (POST_WORKER.running) {
+    POST_WORKER.scheduled = true;
+    return;
+  }
+  POST_WORKER.running = true;
+
+  try {
+    const pending = await findPendingPosts();
+    if (pending.length === 0) return;
+
+    console.log(`[post-worker] processing ${pending.length} pending posts`);
+
+    const poolParents = new Map();
+
+    for (const { id, jsonPath, metadata } of pending) {
+      try {
+        const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
+        if (aiTags.length === 0) {
+          console.warn(`[post-worker] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
+        }
+        mergeAiTags(metadata, aiTags);
+
+        const poolId = metadata.poolId;
+        let parentId = null;
+        if (poolId) {
+          if (poolParents.has(poolId)) {
+            parentId = poolParents.get(poolId);
+          } else {
+            const existing = await findExistingPoolParents(new Set([poolId]));
+            parentId = existing.get(poolId) ?? null;
+          }
+        }
+
+        let postId;
+        try {
+          postId = await booruUploader.createPostFromAsset(
+            metadata.booruUploadId, metadata, parentId
+          );
+        } catch (err) {
+          const isDup = err.phase === 'post'
+            && err.status === 422
+            && extractDuplicatePostId(err.body) !== null;
+          if (!isDup) throw err;
+
+          try {
+            postId = await booruUploader.createPostFromAsset(
+              metadata.booruUploadId, metadata, parentId, { duplicateOverride: true }
+            );
+          } catch (overrideErr) {
+            await logDuplicateFailure(
+              path.basename(jsonPath, '.json'),
+              overrideErr.body || err.body
+            );
+            console.error(`[post-worker] duplicate override failed for ${id}; logged and skipping`);
+            continue;
+          }
+        }
+
+        metadata.booruPostId = postId;
+        await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+        if (poolId && !poolParents.has(poolId)) poolParents.set(poolId, postId);
+      } catch (err) {
+        console.error(`[post-worker] failed to post ${id}:`, err.message);
+      }
+
+      await new Promise(r => setTimeout(r, POST_WORKER.POLITENESS_GAP_MS));
+    }
+
+    console.log('[post-worker] tick complete');
+  } finally {
+    POST_WORKER.running = false;
+    if (POST_WORKER.scheduled) {
+      POST_WORKER.scheduled = false;
+      setImmediate(postWorkerTick);
+    }
+  }
+}
+
+/** Public entry — coalesces concurrent calls. */
+function kickPostWorker() {
+  postWorkerTick().catch(err => console.error('[post-worker] tick threw:', err));
+}
+
+// Maintenance: catch any sidecars uploaded outside the SSE flow.
+setInterval(kickPostWorker, POST_WORKER.MAINTENANCE_INTERVAL_MS);
+
+// ============================================================
+// Route — place near the other /api/staging routes
+// ============================================================
+ 
+// Bulk JSON response (back-compat with v1).
+app.post('/api/staging/upload-to-booru', async (req, res) => {
+  const validationError = validateBooruUploadBody(req.body);
+  if (validationError) return res.status(400).json({ error: validationError });
+ 
+  try {
+    const { ids, all = false, force = false } = req.body;
+    const summary = await runBooruUploads({ ids, all, force });
+    kickPostWorker();
+    res.json(summary);
+  } catch (err) {
+    console.error('Error in upload-to-booru:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+ 
+// Streaming SSE per-item progress.
+app.post('/api/staging/upload-to-booru/stream', async (req, res) => {
+  const validationError = validateBooruUploadBody(req.body);
+  if (validationError) return res.status(400).json({ error: validationError });
+ 
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // disable buffering if reverse-proxied
+  res.flushHeaders();
+
+  if (res.socket) {
+    res.socket.setNoDelay(true);
+    res.socket.setTimeout(0);
+  }
+  
+  res.write(': ping\n\n');
+
+  const send = (event, data) => {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+    if (res.socket && typeof res.socket.uncork === 'function') {
+      res.socket.uncork();         // ensure immediate send
+    }
+  };
+ 
+  // If the client disconnects mid-stream, stop emitting (the loop is sequential
+  // and the next emit will silently no-op into a closed socket; that's fine).
+  try {
+    const { ids, all = false, force = false } = req.body;
+    await runBooruUploads({ ids, all, force }, (progress) => {
+      send(progress.phase, progress);
+    });
+    kickPostWorker();
+  } catch (err) {
+    console.error('Error in upload-to-booru/stream:', err);
+    send('error', { error: err.message });
+  } finally {
+    res.end();
+  }
+});
 
 // Updated duplicate check endpoint with similarity support
 app.get('/api/images/check-duplicate/:hash', async (req, res) => {
@@ -1392,8 +1911,10 @@ app.get('/api/staging/images', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
-    
-    const result = await scanStagingDirectory(limit, offset);
+    const validSorts = ['newest', 'oldest', 'tags-desc', 'tags-asc'];
+    const sort = validSorts.includes(req.query.sort) ? req.query.sort : 'newest';
+
+    const result = await scanStagingDirectory(limit, offset, sort);
     res.json(result);
   } catch (error) {
     console.error('Error listing staging images:', error);
@@ -1433,6 +1954,63 @@ app.put('/api/staging/images/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/staging/images/batch
+//   body: { ids: string[], addTags?: string[] }
+//   Adds `addTags` to every image in `ids`, deduped (union).
+//   Returns: { total, succeeded, failed, results: [{id, success, error?}] }
+app.patch('/api/staging/images/batch', async (req, res) => {
+  try {
+    const { ids, addTags = [] } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '`ids` must be a non-empty array' });
+    }
+    if (!Array.isArray(addTags)) {
+      return res.status(400).json({ error: '`addTags` must be an array' });
+    }
+    if (addTags.length === 0) {
+      return res.json({ total: 0, succeeded: 0, failed: 0, results: [] });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+      try {
+        const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+
+        // Union with existing flat-tag list. The on-disk shape may be
+        // category-bucketed; we read both and write back in a normalized
+        // flat-array shape that loadStagingImage already handles.
+        const existing = new Set();
+        if (Array.isArray(json.tags)) {
+          json.tags.forEach(t => existing.add(t));
+        } else if (json.tags && typeof json.tags === 'object') {
+          for (const [cat, list] of Object.entries(json.tags)) {
+            if (!Array.isArray(list)) continue;
+            list.forEach(t => existing.add(cat === 'general' ? t : `${cat}:${t}`));
+          }
+        }
+        addTags.forEach(t => existing.add(t));
+
+        json.tags = Array.from(existing);
+        await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+        results.push({ id, success: true });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/batch PATCH:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/staging/images/:id - Delete staging image
 app.delete('/api/staging/images/:id', async (req, res) => {
   try {
@@ -1446,6 +2024,55 @@ app.delete('/api/staging/images/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting staging image:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/staging/images/batch
+//   body: { ids: string[] }
+//   Deletes JSON sidecar + image file for each. Mirrors the single-image
+//   DELETE behavior (whatever your existing route does — adapt if you've
+//   changed it to move-to-trash, cascade pool cleanup, etc.).
+app.delete('/api/staging/images/batch', async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '`ids` must be a non-empty array' });
+    }
+
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+    const results = [];
+
+    for (const id of ids) {
+      const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+      try {
+        // Remove image file (whichever extension exists)
+        const baseName = jsonPath.replace(/\.json$/, '');
+        for (const ext of imageExts) {
+          const candidate = baseName + ext;
+          try {
+            await fs.unlink(candidate);
+            break;
+          } catch {
+            // try next ext
+          }
+        }
+        // Remove JSON sidecar
+        await fs.unlink(jsonPath);
+        results.push({ id, success: true });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/batch DELETE:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
