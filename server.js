@@ -1,17 +1,17 @@
 // server.js - Tag Saver Local Server
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 const cors = require('cors');
 const sharp = require('sharp');
 const glob = require('glob');
 const fs = require('fs').promises;
+const { spawn } = require('child_process');
 
 const TagProcessor = require('./tag-processor');
 const TagAnalyzer = require('./tag-analyzer');
 const DatabaseAnalyzer = require('./db-analyzer');
 const { DanbooruUploader } = require('./danbooru-uploader');
-const tagProcessor = new TagProcessor('./tag-taxonomy.json');
 
 const booruUploader = new DanbooruUploader({
   baseUrl:  process.env.DANBOORU_URL  || 'http://192.168.0.205:3000',
@@ -33,6 +33,7 @@ const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.m
 const STAGING_DIR = 'C:\\Users\\zalka\\Downloads\\TagSaver';
 const TAXONOMY_FILE = path.join(__dirname, 'tag-taxonomy.json');
 const TRASH_DIR = path.join(STAGING_DIR, '.trash');
+const THUMBS_DIR = path.join(STAGING_DIR, '.thumbs');
 
 const app = express();
 const PORT = 3737; // Fixed port for the extension to connect to
@@ -95,17 +96,20 @@ app.use((req, res, next) => {
 const DB_PATH = path.join(process.cwd(), 'tag_saver.db');
 let db;
 
-// Initialize database
-async function initDatabase() {
-  db = new sqlite3.Database(DB_PATH);
-  
+// Initialize database (synchronous now — better-sqlite3 has no async
+// API, all calls block. With our query volume this is fine.)
+function initDatabase() {
+  db = new Database(DB_PATH);
+
+  // Pragmas. better-sqlite3 supports the `pragma()` shortcut, but a
+  // raw exec works the same and matches the SQL we already had.
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
     PRAGMA cache_size = -64000;
     PRAGMA temp_store = MEMORY;
     PRAGMA mmap_size = 268435456;
-    
+
     PRAGMA wal_autocheckpoint = 0;
     PRAGMA checkpoint_fullfsync = 0;
     PRAGMA count_changes = 0;
@@ -113,74 +117,753 @@ async function initDatabase() {
     PRAGMA optimize;
   `);
 
-  // Create tables
-  db.serialize(() => {
-    // Images table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT NOT NULL,
-        image_url TEXT,
-        image_hash TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        pool_id TEXT,
-        pool_index INTEGER,
-        media_type TEXT DEFAULT 'image',
-        file_path TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+  // Schema. exec() runs all statements in one go — no need for
+  // serialize() because better-sqlite3 is sync by design.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL,
+      image_url TEXT,
+      image_hash TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      pool_id TEXT,
+      pool_index INTEGER,
+      media_type TEXT DEFAULT 'image',
+      file_path TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      category TEXT DEFAULT 'general',
+      count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS image_tags (
+      image_id INTEGER,
+      tag_id INTEGER,
+      PRIMARY KEY (image_id, tag_id),
+      FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_images_hash ON images(image_hash);
+    CREATE INDEX IF NOT EXISTS idx_images_url ON images(url);
+    CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+    CREATE INDEX IF NOT EXISTS idx_pool ON images(pool_id, pool_index);
+
+
+    CREATE TABLE IF NOT EXISTS staging_images (
+      id TEXT PRIMARY KEY,
+
+      json_path TEXT NOT NULL,
+      image_path TEXT,
+      filename TEXT,
+
+      source_url TEXT,
+      image_hash TEXT,
+      media_type TEXT,
+
+      pool_id TEXT,
+      pool_index INTEGER,
+
+      booru_upload_id INTEGER,
+      booru_media_asset_id INTEGER,
+      booru_post_id INTEGER,
+
+      timestamp INTEGER,
+      sidecar_mtime INTEGER NOT NULL,
+      tag_count INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_staging_timestamp
+      ON staging_images(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_staging_pool
+      ON staging_images(pool_id, pool_index);
+    CREATE INDEX IF NOT EXISTS idx_staging_post_id
+      ON staging_images(booru_post_id);
+    CREATE INDEX IF NOT EXISTS idx_staging_upload_id
+      ON staging_images(booru_upload_id);
+    CREATE INDEX IF NOT EXISTS idx_staging_tag_count
+      ON staging_images(tag_count);
+
+    CREATE TABLE IF NOT EXISTS staging_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      post_count INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(category, name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_staging_tags_name ON staging_tags(name);
+
+    CREATE TABLE IF NOT EXISTS staging_image_tags (
+      image_id TEXT NOT NULL,
+      tag_id INTEGER NOT NULL,
+      PRIMARY KEY (image_id, tag_id),
+      FOREIGN KEY (image_id) REFERENCES staging_images(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES staging_tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_staging_image_tags_tag
+      ON staging_image_tags(tag_id);
+
+    CREATE TABLE IF NOT EXISTS config_aliases (
+      source TEXT PRIMARY KEY,
+      canonical TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS config_hierarchy (
+      parent TEXT NOT NULL,
+      child TEXT NOT NULL,
+      PRIMARY KEY (parent, child)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_hierarchy_parent
+      ON config_hierarchy(parent);
+
+    CREATE TABLE IF NOT EXISTS config_blacklist (
+      tag TEXT PRIMARY KEY
+    );
     
-    // Tags table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        category TEXT DEFAULT 'general',
-        count INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    CREATE TABLE IF NOT EXISTS config_aliases_rejected (
+      source TEXT PRIMARY KEY
+    );
+
+    CREATE TABLE IF NOT EXISTS config_blacklist_rejected (
+      tag TEXT PRIMARY KEY
+    );
+
+    CREATE TABLE IF NOT EXISTS config_aliases_suggestions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      canonical TEXT NOT NULL,
+      source TEXT NOT NULL,
+      -- Total post_count for this group (denormalized for UI sort)
+      group_count INTEGER NOT NULL DEFAULT 0,
+      -- post_count of the source variant (so UI can show "elira_pendora (3)")
+      source_count INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(canonical, source)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_alias_suggestions_canonical
+      ON config_aliases_suggestions(canonical);
+    CREATE INDEX IF NOT EXISTS idx_alias_suggestions_group_count
+      ON config_aliases_suggestions(group_count DESC);
+
+    CREATE TABLE IF NOT EXISTS config_blacklist_suggestions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tag TEXT NOT NULL UNIQUE,
+      reason TEXT NOT NULL,            -- 'non-ascii' | 'low-count'
+      post_count INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_blacklist_suggestions_count
+      ON config_blacklist_suggestions(post_count DESC);
+
+    -- ============================================================
+    -- Persistent log: survives staging deletions, monotonic counts
+    -- ============================================================
+
+    -- Hash log: every image hash ever ingested. Drives the extension's
+    -- duplicate check independent of whether the image is currently in
+    -- staging. Smaller payload than the legacy join — extension scrolling
+    -- through hundreds of booru images per second needs this fast.
+    CREATE TABLE IF NOT EXISTS image_log (
+      image_hash      TEXT PRIMARY KEY,
+      source_url      TEXT,
+      pool_id         TEXT,
+      pool_index      INTEGER,
+      booru_post_id   INTEGER,
+      first_seen_ts   INTEGER NOT NULL,
+      last_seen_ts    INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_image_log_pool ON image_log(pool_id);
+    CREATE INDEX IF NOT EXISTS idx_image_log_booru ON image_log(booru_post_id);
+
+    -- Pool log: every pool ID + highest index ever seen. Used to (a)
+    -- generate non-colliding new pool IDs, (b) answer pool-highest-index
+    -- queries from history not just current staging.
+    CREATE TABLE IF NOT EXISTS pool_log (
+      pool_id         TEXT PRIMARY KEY,
+      source_url      TEXT,
+      highest_index   INTEGER NOT NULL DEFAULT 0,
+      first_seen_ts   INTEGER NOT NULL,
+      last_seen_ts    INTEGER NOT NULL
+    );
+
+    -- Tag log: cumulative count of how many times a (category, name)
+    -- pair has been added to a sidecar. Counts are monotonic — never
+    -- decrement. Powers autocomplete ranking with historical accuracy.
+    CREATE TABLE IF NOT EXISTS tag_log (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      category        TEXT NOT NULL,
+      name            TEXT NOT NULL,
+      total_uses      INTEGER NOT NULL DEFAULT 0,
+      first_seen_ts   INTEGER NOT NULL,
+      last_seen_ts    INTEGER NOT NULL,
+      UNIQUE(category, name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tag_log_uses ON tag_log(total_uses DESC);
+    CREATE INDEX IF NOT EXISTS idx_tag_log_name ON tag_log(name);
+
+    -- Junction: which (image_id, tag_log_id) pairs have been counted.
+    -- Prevents double-counting on re-syncs. Insertion via INSERT OR IGNORE;
+    -- only when a row is genuinely inserted (changes > 0) does tag_log
+    -- count get bumped. Survives staging_images deletion intentionally.
+    CREATE TABLE IF NOT EXISTS tag_log_seen (
+      image_id        TEXT NOT NULL,
+      tag_log_id      INTEGER NOT NULL,
+      PRIMARY KEY (image_id, tag_log_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tag_log_seen_tag ON tag_log_seen(tag_log_id);
+  `);
+
+  try {
+    db.exec(`ALTER TABLE config_aliases ADD COLUMN created_at INTEGER`);
+  } catch (err) {
+    // SQLite errors if column already exists — ignore. (No "IF NOT EXISTS"
+    // for ALTER TABLE in SQLite.)
+  }
+
+  console.log('█ Database initialized.');
+}
+
+// ============================================================
+// STAGING INDEX — boot scan + helpers
+// ============================================================
+
+const STAGING_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+
+/**
+ * Resolve { id, jsonPath, imagePath, filename, sidecarMtime } for a
+ * single sidecar path. Returns null if the matching image file is
+ * missing — we skip those (sidecar without image is broken state).
+ */
+async function probeSidecar(jsonPath) {
+  const stat = await fs.stat(jsonPath);
+  const id = path.basename(jsonPath, '.json');
+  const baseName = jsonPath.slice(0, -5); // strip .json
+  let imagePath = null;
+  let filename = null;
+  for (const ext of STAGING_IMAGE_EXTS) {
+    const candidate = baseName + ext;
+    try {
+      await fs.access(candidate);
+      imagePath = candidate;
+      filename = path.basename(candidate);
+      break;
+    } catch {
+      // try next ext
+    }
+  }
+  return {
+    id, jsonPath, imagePath, filename,
+    sidecarMtime: stat.mtimeMs,
+  };
+}
+
+/**
+ * Read the sidecar JSON, extract everything we need to populate one
+ * staging_images row + its tag links. Returns the parsed object plus
+ * the flat tag list as [{category, name}].
+ */
+async function readSidecar(jsonPath) {
+  const raw = await fs.readFile(jsonPath, 'utf8');
+  const json = JSON.parse(raw);
+
+  const tags = [];
+  if (Array.isArray(json.tags)) {
+    // Flat array: assume general unless the tag has a category prefix.
+    for (const t of json.tags) {
+      if (typeof t !== 'string') continue;
+      if (t.includes(':')) {
+        const [cat, ...rest] = t.split(':');
+        tags.push({ category: cat, name: rest.join(':') });
+      } else {
+        tags.push({ category: 'general', name: t });
+      }
+    }
+  } else if (json.tags && typeof json.tags === 'object') {
+    // Categorized form: { general: [...], character: [...], ... }
+    for (const [category, list] of Object.entries(json.tags)) {
+      if (!Array.isArray(list)) continue;
+      for (const name of list) {
+        if (typeof name === 'string') tags.push({ category, name });
+      }
+    }
+  }
+
+  // Timestamp: prefer JSON.timestamp, fall back to file mtime
+  let timestamp = null;
+  if (json.timestamp) timestamp = new Date(json.timestamp).getTime();
+
+  return { json, tags, timestamp };
+}
+
+/**
+ * Insert/update one sidecar in the index. Idempotent.
+ *
+ * Returns 'inserted' | 'updated' | 'skipped'. Logging granularity for
+ * the boot scan stats.
+ */
+function upsertStagingRow(probe, json, tags, timestamp) {
+  return db.transaction(() => {
+    // 1. Existing row check by id
+    const existing = db.prepare(
+      'SELECT sidecar_mtime FROM staging_images WHERE id = ?'
+    ).get(probe.id);
+
+    if (existing && existing.sidecar_mtime === probe.sidecarMtime) {
+      return 'skipped';
+    }
+
+    // 2. Upsert the staging_images row
+    const row = {
+      id: probe.id,
+      json_path: probe.jsonPath,
+      image_path: probe.imagePath,
+      filename: probe.filename,
+      source_url: json.sourceUrl || null,
+      image_hash: json.imageHash || null,
+      media_type: json.mediaType || 'image',
+      pool_id: json.poolId || null,
+      pool_index: json.poolIndex ?? null,
+      booru_upload_id: json.booruUploadId || null,
+      booru_media_asset_id: json.booruMediaAssetId || null,
+      booru_post_id: json.booruPostId || null,
+      timestamp: timestamp ?? probe.sidecarMtime,
+      sidecar_mtime: probe.sidecarMtime,
+      tag_count: tags.length,
+    };
+
+    db.prepare(`
+      INSERT INTO staging_images (
+        id, json_path, image_path, filename, source_url, image_hash,
+        media_type, pool_id, pool_index,
+        booru_upload_id, booru_media_asset_id, booru_post_id,
+        timestamp, sidecar_mtime, tag_count
+      ) VALUES (
+        @id, @json_path, @image_path, @filename, @source_url, @image_hash,
+        @media_type, @pool_id, @pool_index,
+        @booru_upload_id, @booru_media_asset_id, @booru_post_id,
+        @timestamp, @sidecar_mtime, @tag_count
       )
+      ON CONFLICT(id) DO UPDATE SET
+        json_path = excluded.json_path,
+        image_path = excluded.image_path,
+        filename = excluded.filename,
+        source_url = excluded.source_url,
+        image_hash = excluded.image_hash,
+        media_type = excluded.media_type,
+        pool_id = excluded.pool_id,
+        pool_index = excluded.pool_index,
+        booru_upload_id = excluded.booru_upload_id,
+        booru_media_asset_id = excluded.booru_media_asset_id,
+        booru_post_id = excluded.booru_post_id,
+        timestamp = excluded.timestamp,
+        sidecar_mtime = excluded.sidecar_mtime,
+        tag_count = excluded.tag_count
+    `).run(row);
+
+    // 3. Replace tag links — easier than diffing for now
+    db.prepare('DELETE FROM staging_image_tags WHERE image_id = ?').run(probe.id);
+
+    const insertTag = db.prepare(`
+      INSERT INTO staging_tags (category, name, post_count) VALUES (?, ?, 0)
+      ON CONFLICT(category, name) DO NOTHING
     `);
-    
-    // Image-Tag relationships
-    db.run(`
-      CREATE TABLE IF NOT EXISTS image_tags (
-        image_id INTEGER,
-        tag_id INTEGER,
-        PRIMARY KEY (image_id, tag_id),
-        FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-      )
-    `);
-    
-    // Indexes for performance
-    db.run(`CREATE INDEX IF NOT EXISTS idx_images_hash ON images(image_hash)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_images_url ON images(url)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_pool ON images(pool_id, pool_index)`);
+    const findTag = db.prepare(
+      'SELECT id FROM staging_tags WHERE category = ? AND name = ?'
+    );
+    const linkTag = db.prepare(
+      'INSERT OR IGNORE INTO staging_image_tags (image_id, tag_id) VALUES (?, ?)'
+    );
+
+    for (const { category, name } of tags) {
+      insertTag.run(category, name);
+      const tagRow = findTag.get(category, name);
+      if (tagRow) linkTag.run(probe.id, tagRow.id);
+    }
+    syncLogTables(probe.id, json, tags);
+    return existing ? 'updated' : 'inserted';
+  })();
+}
+
+/**
+ * Recompute every tag's post_count from the junction. Cheap (one
+ * scan), idempotent, called once at the end of the boot scan.
+ */
+function recomputeTagCounts() {
+  db.exec(`
+    UPDATE staging_tags
+    SET post_count = (
+      SELECT COUNT(*) FROM staging_image_tags WHERE tag_id = staging_tags.id
+    )
+  `);
+  // Optional: prune zero-count tags. Skipped — tag history is useful
+  // for analytics and the count only adds bytes, not query cost.
+}
+
+/**
+ * Prune index rows whose sidecar file no longer exists on disk.
+ * Called after the scan loop completes.
+ */
+async function pruneOrphans(seenIds) {
+  const all = db.prepare('SELECT id FROM staging_images').all();
+  const toDelete = all.map(r => r.id).filter(id => !seenIds.has(id));
+  if (toDelete.length === 0) return 0;
+
+  const stmt = db.prepare('DELETE FROM staging_images WHERE id = ?');
+  const tx = db.transaction((ids) => {
+    for (const id of ids) stmt.run(id);
   });
-  
-  console.log('Database initialized at:', DB_PATH);
+  tx(toDelete);
+  return toDelete.length;
+}
+
+/**
+ * Walk STAGING_DIR, sync the index. Called at boot and on demand.
+ */
+async function scanStagingIntoDb() {
+  const t0 = Date.now();
+  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+
+  console.log(`  [index-scan] found ${files.length} sidecars on disk`);
+
+  let inserted = 0, updated = 0, skipped = 0, errored = 0;
+  const seen = new Set();
+
+  for (const jsonPath of files) {
+    try {
+      const probe = await probeSidecar(jsonPath);
+      seen.add(probe.id);
+
+      // Fast path: mtime match — skip the JSON read entirely.
+      const existing = db.prepare(
+        'SELECT sidecar_mtime FROM staging_images WHERE id = ?'
+      ).get(probe.id);
+      if (existing && existing.sidecar_mtime === probe.sidecarMtime) {
+        skipped++;
+        continue;
+      }
+
+      // Slow path: read JSON, upsert.
+      const { json, tags, timestamp } = await readSidecar(jsonPath);
+      const action = upsertStagingRow(probe, json, tags, timestamp);
+      if (action === 'inserted') inserted++;
+      else if (action === 'updated') updated++;
+      else skipped++;
+    } catch (err) {
+      errored++;
+      console.warn(`  [index-scan] error on ${jsonPath}: ${err.message}`);
+    }
+
+    // Progress log every 1000 files
+    const total = inserted + updated + skipped + errored;
+    if (total % 1000 === 0) {
+      console.log(`  [index-scan] progress: ${total}/${files.length}`);
+    }
+  }
+
+  const pruned = await pruneOrphans(seen);
+  recomputeTagCounts();
+
+  const elapsed = Date.now() - t0;
+  console.log(
+    `  [index-scan] done in ${elapsed}ms — ` +
+    `inserted=${inserted} updated=${updated} skipped=${skipped} ` +
+    `errored=${errored} pruned=${pruned}`
+  );
+
+  return { inserted, updated, skipped, errored, pruned, elapsed };
+}
+
+// ============================================================
+// STAGING INDEX — incremental sync helpers
+// ============================================================
+
+/**
+ * Sync one sidecar JSON to its staging_images + staging_image_tags
+ * rows. Idempotent. Use this after any save/upload/post that mutates
+ * a sidecar.
+ *
+ * Differs from scanStagingIntoDb's upsert path in two ways:
+ *   - It also adjusts staging_tags.post_count for tags added/removed,
+ *     so we don't need a full recompute after every save.
+ *   - It assumes the caller already wrote the sidecar, so we read
+ *     fresh from disk to capture exactly what's there.
+ */
+async function syncSidecarToDb(id) {
+  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+
+  let probe;
+  try {
+    probe = await probeSidecar(jsonPath);
+  } catch (err) {
+    console.warn(`[index-sync] failed to stat ${id}: ${err.message}`);
+    return false;
+  }
+
+  let json, tags, timestamp;
+  try {
+    ({ json, tags, timestamp } = await readSidecar(jsonPath));
+  } catch (err) {
+    console.warn(`[index-sync] failed to read ${id}: ${err.message}`);
+    return false;
+  }
+
+  // Diff: figure out which (category, name) pairs leave or join the
+  // image, so we can adjust post_count incrementally.
+  const oldLinkRows = db.prepare(`
+    SELECT st.id AS tag_id, st.category, st.name
+    FROM staging_image_tags sit
+    JOIN staging_tags st ON st.id = sit.tag_id
+    WHERE sit.image_id = ?
+  `).all(id);
+
+  const oldKeys = new Set(oldLinkRows.map(r => `${r.category}\0${r.name}`));
+  const newKeys = new Set(tags.map(t => `${t.category}\0${t.name}`));
+
+  const tx = db.transaction(() => {
+    // Upsert the image row
+    db.prepare(`
+      INSERT INTO staging_images (
+        id, json_path, image_path, filename, source_url, image_hash,
+        media_type, pool_id, pool_index,
+        booru_upload_id, booru_media_asset_id, booru_post_id,
+        timestamp, sidecar_mtime, tag_count
+      ) VALUES (
+        @id, @json_path, @image_path, @filename, @source_url, @image_hash,
+        @media_type, @pool_id, @pool_index,
+        @booru_upload_id, @booru_media_asset_id, @booru_post_id,
+        @timestamp, @sidecar_mtime, @tag_count
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        json_path = excluded.json_path,
+        image_path = excluded.image_path,
+        filename = excluded.filename,
+        source_url = excluded.source_url,
+        image_hash = excluded.image_hash,
+        media_type = excluded.media_type,
+        pool_id = excluded.pool_id,
+        pool_index = excluded.pool_index,
+        booru_upload_id = excluded.booru_upload_id,
+        booru_media_asset_id = excluded.booru_media_asset_id,
+        booru_post_id = excluded.booru_post_id,
+        timestamp = excluded.timestamp,
+        sidecar_mtime = excluded.sidecar_mtime,
+        tag_count = excluded.tag_count
+    `).run({
+      id: probe.id,
+      json_path: probe.jsonPath,
+      image_path: probe.imagePath,
+      filename: probe.filename,
+      source_url: json.sourceUrl || null,
+      image_hash: json.imageHash || null,
+      media_type: json.mediaType || 'image',
+      pool_id: json.poolId || null,
+      pool_index: json.poolIndex ?? null,
+      booru_upload_id: json.booruUploadId || null,
+      booru_media_asset_id: json.booruMediaAssetId || null,
+      booru_post_id: json.booruPostId || null,
+      timestamp: timestamp ?? probe.sidecarMtime,
+      sidecar_mtime: probe.sidecarMtime,
+      tag_count: tags.length,
+    });
+    // Tags that disappeared: unlink + decrement post_count
+    const decTag = db.prepare(`
+      UPDATE staging_tags SET post_count = MAX(post_count - 1, 0)
+      WHERE id = ?
+    `);
+    const unlinkTag = db.prepare(
+      'DELETE FROM staging_image_tags WHERE image_id = ? AND tag_id = ?'
+    );
+    for (const old of oldLinkRows) {
+      const key = `${old.category}\0${old.name}`;
+      if (!newKeys.has(key)) {
+        unlinkTag.run(id, old.tag_id);
+        decTag.run(old.tag_id);
+      }
+    }
+
+    // Tags that arrived: insert tag row if missing, link, increment
+    const insertTag = db.prepare(`
+      INSERT INTO staging_tags (category, name, post_count) VALUES (?, ?, 0)
+      ON CONFLICT(category, name) DO NOTHING
+    `);
+    const findTag = db.prepare(
+      'SELECT id FROM staging_tags WHERE category = ? AND name = ?'
+    );
+    const linkTag = db.prepare(
+      'INSERT OR IGNORE INTO staging_image_tags (image_id, tag_id) VALUES (?, ?)'
+    );
+    const incTag = db.prepare(
+      'UPDATE staging_tags SET post_count = post_count + 1 WHERE id = ?'
+    );
+
+    for (const t of tags) {
+      const key = `${t.category}\0${t.name}`;
+      if (oldKeys.has(key)) continue;  // already linked
+
+      insertTag.run(t.category, t.name);
+      const tagRow = findTag.get(t.category, t.name);
+      if (!tagRow) continue;
+      const linked = linkTag.run(id, tagRow.id);
+      // Only increment if we actually inserted a new link.
+      if (linked.changes > 0) incTag.run(tagRow.id);
+    }
+    
+    syncLogTables(id, json, tags);
+  });
+  try {
+    tx();
+    return true;
+  } catch (err) {
+    console.error(`[index-sync] tx failed for ${id}: ${err.message}`);
+    return false;
+  }
+}
+
+/**
+ * Remove a row from the staging index. Adjusts post_count for any
+ * tags this image was the only user of.
+ */
+function removeStagingFromDb(id) {
+  const tx = db.transaction(() => {
+    const linkRows = db.prepare(
+      'SELECT tag_id FROM staging_image_tags WHERE image_id = ?'
+    ).all(id);
+
+    db.prepare('DELETE FROM staging_image_tags WHERE image_id = ?').run(id);
+
+    const decTag = db.prepare(`
+      UPDATE staging_tags SET post_count = MAX(post_count - 1, 0)
+      WHERE id = ?
+    `);
+    for (const r of linkRows) decTag.run(r.tag_id);
+
+    db.prepare('DELETE FROM staging_images WHERE id = ?').run(id);
+  });
+
+  try {
+    tx();
+    return true;
+  } catch (err) {
+    console.error(`[index-sync] remove failed for ${id}: ${err.message}`);
+    return false;
+  }
+}
+
+/**
+ * Update the persistent log tables for one synced sidecar.
+ *
+ *   - image_log: upsert by hash, stamp last_seen_ts. Updates booru_post_id
+ *     if present in metadata (tracks current state, not history of changes).
+ *   - pool_log: upsert by pool_id, bump highest_index using max().
+ *   - tag_log: per tag (post-canonicalize), insert tag row if missing,
+ *     attempt junction insert. Junction collision = tag already counted
+ *     for this image; no-op. Junction insert success = tag is new for
+ *     this image; bump total_uses.
+ *
+ * @param id      staging image id (string, sidecar basename)
+ * @param data    parsed sidecar JSON
+ * @param tags    array of {category, name} for tags currently in sidecar
+ *                (already canonicalized — only canonical tags count)
+ */
+function syncLogTables(id, data, tags) {
+  const now = Date.now();
+
+  // --- image_log -------------------------------------------------------
+  if (data.imageHash) {
+    db.prepare(`
+      INSERT INTO image_log
+        (image_hash, source_url, pool_id, pool_index, booru_post_id, first_seen_ts, last_seen_ts)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(image_hash) DO UPDATE SET
+        source_url    = COALESCE(excluded.source_url, source_url),
+        pool_id       = COALESCE(excluded.pool_id, pool_id),
+        pool_index    = COALESCE(excluded.pool_index, pool_index),
+        booru_post_id = COALESCE(excluded.booru_post_id, booru_post_id),
+        last_seen_ts  = excluded.last_seen_ts
+    `).run(
+      data.imageHash,
+      data.sourceUrl || null,
+      data.poolId || null,
+      data.poolIndex ?? null,
+      data.booruPostId ?? null,
+      now, now
+    );
+  }
+
+  // --- pool_log --------------------------------------------------------
+  // Bump highest_index = max(existing, this image's index). Uses
+  // ON CONFLICT to upsert atomically.
+  if (data.poolId) {
+    const idx = data.poolIndex ?? 0;
+    db.prepare(`
+      INSERT INTO pool_log
+        (pool_id, source_url, highest_index, first_seen_ts, last_seen_ts)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(pool_id) DO UPDATE SET
+        highest_index = MAX(highest_index, excluded.highest_index),
+        last_seen_ts  = excluded.last_seen_ts
+    `).run(data.poolId, data.sourceUrl || null, idx, now, now);
+  }
+
+  // --- tag_log + tag_log_seen ------------------------------------------
+  // For each tag: ensure tag_log row, attempt junction insert. If junction
+  // insert succeeds (changes=1), this is the first time this image has
+  // contributed this tag — bump total_uses. If it fails (changes=0,
+  // collision on PK), already counted — no-op.
+
+  const upsertTagLog = db.prepare(`
+    INSERT INTO tag_log (category, name, total_uses, first_seen_ts, last_seen_ts)
+    VALUES (?, ?, 0, ?, ?)
+    ON CONFLICT(category, name) DO UPDATE SET
+      last_seen_ts = excluded.last_seen_ts
+  `);
+  const findTagLog = db.prepare(
+    'SELECT id FROM tag_log WHERE category = ? AND name = ?'
+  );
+  const insertSeen = db.prepare(
+    'INSERT OR IGNORE INTO tag_log_seen (image_id, tag_log_id) VALUES (?, ?)'
+  );
+  const incTagLog = db.prepare(
+    'UPDATE tag_log SET total_uses = total_uses + 1 WHERE id = ?'
+  );
+
+  for (const t of tags) {
+    upsertTagLog.run(t.category, t.name, now, now);
+    const row = findTagLog.get(t.category, t.name);
+    if (!row) continue;
+    const seen = insertSeen.run(id, row.id);
+    if (seen.changes > 0) {
+      incTagLog.run(row.id);
+    }
+  }
 }
 
 // Helper functions
-function promiseDb(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(query, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+async function promiseDb(query, params = []) {
+  return db.prepare(query).all(...arrayifyParams(params));
 }
 
-function promiseDbRun(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(query, params, function(err) {
-      if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
+async function promiseDbRun(query, params = []) {
+  const info = db.prepare(query).run(...arrayifyParams(params));
+  return { id: info.lastInsertRowid, changes: info.changes };
+}
+
+function arrayifyParams(params) {
+  if (params == null) return [];
+  if (Array.isArray(params)) return params;
+  if (typeof params === 'object') return [params];
+  return [params];
 }
 
 // Add Hamming distance calculation function
@@ -388,337 +1071,741 @@ app.post('/api/images', async (req, res) => {
       duplicateInfo: duplicateInfo // ✅ Include duplicate info in response
     });
     
-    processImageInBackground(url, tags, imageUrl, imageHash, poolId, poolIndex, mediaType, startTime);
-    
   } catch (error) {
     console.error('❌ Error saving image:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Background processing function
-async function processImageInBackground(url, tags, imageUrl, imageHash, poolId, poolIndex, mediaType, startTime, duplicateInfo = null) {
-  try {
-    console.log(`🔄 Background processing started...`);
-    if (duplicateInfo) {
-      console.log(`📋 DUPLICATE SAVE: ${duplicateInfo.exactMatch ? 'Exact' : 'Similar'} duplicate saved anyway`);
-      console.log(`📋 Original: ${duplicateInfo.originalRecord.timestamp}, New: ${new Date().toISOString()}`);
+// ============================================================
+// CONFIG — DB-backed taxonomy
+// ============================================================
+
+/**
+ * Read the full config bundle from the DB. Shape matches what the
+ * old loadOrInitializeTaxonomy() used to return, so the UI doesn't
+ * notice the storage swap.
+ *
+ * Returns:
+ * {
+ *   aliases:    { canonical -> { category, variants[] } },
+ *   exclusions: { blacklist[], whitelist[] },
+ *   hierarchy:  { parent -> child[] },
+ *   suggestions: { aliases: [], garbage: [] },   // empty until step 11+
+ *   dismissed:   { aliases: [], garbage: [] },   // mirrors rejected tables
+ *   lastRun:    null
+ * }
+ */
+function loadTaxonomyFromDb() {
+  // --- Aliases ---
+  // DB stores flat (source, canonical). UI wants grouped by canonical
+  // with category extracted. Group on the fly.
+  const aliasRows = db.prepare(`
+    SELECT source, canonical, created_at
+    FROM config_aliases
+    ORDER BY COALESCE(created_at, 0) DESC, canonical, source
+  `).all();
+
+  const aliases = {};
+  const orderedCanonicals = [];
+  for (const { source, canonical, created_at } of aliasRows) {
+    if (!aliases[canonical]) {
+      const [category] = canonical.includes(':') ? canonical.split(':') : ['general'];
+      aliases[canonical] = {
+        category,
+        variants: [],
+        createdAt: created_at,   // pass through; UI ignores if missing
+      };
+      orderedCanonicals.push(canonical);
     }
-    let imageId;
-    
-    // Handle pool conflicts
-    if (poolId && poolIndex !== undefined) {
-      await promiseDbRun(
-        'UPDATE images SET pool_index = pool_index + 1 WHERE pool_id = ? AND pool_index >= ?',
-        [poolId, poolIndex]
-      );
-    }
-    
-    // Insert image
-    const imageResult = await promiseDbRun(`
-      INSERT INTO images (url, image_url, image_hash, pool_id, pool_index, media_type)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [url, imageUrl, imageHash, poolId, poolIndex, mediaType]);
-    
-    imageId = imageResult.id;
-    
-    // Process tags without transaction (autocommit each operation)
-    await processBatchTagsAutocommit(imageId, tags);
-    
-  } catch (error) {
-    console.error('❌ Background processing failed:', error);
+    aliases[canonical].variants.push(source);
   }
+
+  // --- Exclusions ---
+  // Blacklist comes from config_blacklist; whitelist (= rejected) comes
+  // from config_blacklist_rejected. Old code stored these in the same
+  // exclusions object so we mirror that shape.
+  const blacklist = db.prepare(
+    'SELECT tag FROM config_blacklist ORDER BY tag'
+  ).all().map(r => r.tag);
+
+  const whitelist = db.prepare(
+    'SELECT tag FROM config_blacklist_rejected ORDER BY tag'
+  ).all().map(r => r.tag);
+
+  // --- Hierarchy ---
+  // DB stores flat (parent, child). UI wants { parent -> [children] }.
+  const hierarchyRows = db.prepare(
+    'SELECT parent, child FROM config_hierarchy ORDER BY parent, child'
+  ).all();
+
+  const hierarchy = {};
+  for (const { parent, child } of hierarchyRows) {
+    if (!hierarchy[parent]) hierarchy[parent] = [];
+    hierarchy[parent].push(child);
+  }
+
+  // --- Dismissed (alias side) ---
+  const dismissedAliases = db.prepare(
+    'SELECT source FROM config_aliases_rejected ORDER BY source'
+  ).all().map(r => r.source);
+
+  return {
+    aliases,
+    exclusions: { blacklist, whitelist },
+    hierarchy,
+    suggestions: { aliases: [], garbage: [] },
+    dismissed: { aliases: dismissedAliases, garbage: whitelist },
+    lastRun: null,
+  };
 }
 
-async function processBatchTagsAutocommit(imageId, tags) {
-  console.log(`🚀 Autocommit processing ${tags.length} tags...`);
-  const start = process.hrtime.bigint();
-  
-  // PROCESS TAGS THROUGH TAXONOMY
-  const processedTags = tags;//tagProcessor.processTags(tags);
-
-  // Prepare tag data
-  const tagData = processedTags.map(tagString => {
-    let category = 'general';
-    let name = tagString;
-    if (tagString.includes(':')) {
-      [category, name] = tagString.split(':', 2);
-    }
-    return { name, category };
-  });
-  
-  const uniqueTagNames = [...new Set(tagData.map(t => t.name))];
-  
-  // Get existing tags
-  const existingTags = await promiseDb(
-    `SELECT id, name FROM tags WHERE name IN (${uniqueTagNames.map(() => '?').join(',')})`,
-    uniqueTagNames
-  );
-  
-  const existingTagMap = new Map(existingTags.map(t => [t.name, t.id]));
-  const newTags = tagData.filter(t => !existingTagMap.has(t.name));
-  
-  // Insert new tags if any
-  if (newTags.length > 0) {
-    const insertValues = newTags.map(() => '(?, ?, 1)').join(',');
-    const insertParams = newTags.flatMap(t => [t.name, t.category]);
-    
-    const result = await promiseDbRun(
-      `INSERT INTO tags (name, category, count) VALUES ${insertValues}`,
-      insertParams
-    );
-    
-    const firstNewId = result.id - newTags.length + 1;
-    newTags.forEach((tag, index) => {
-      existingTagMap.set(tag.name, firstNewId + index);
-    });
-  }
-  
-  // Update existing counts and link tags (parallel)
-  const operations = [];
-  
-  if (existingTags.length > 0) {
-    const existingIds = existingTags.map(t => t.id);
-    operations.push(
-      promiseDbRun(
-        `UPDATE tags SET count = count + 1 WHERE id IN (${existingIds.map(() => '?').join(',')})`,
-        existingIds
-      )
-    );
-  }
-  
-  // Link all tags to image
-  const linkValues = tagData.map(() => '(?, ?)').join(',');
-  const linkParams = tagData.flatMap(t => [imageId, existingTagMap.get(t.name)]);
-  operations.push(
-    promiseDbRun(
-      `INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES ${linkValues}`,
-      linkParams
+/**
+ * Replace the aliases section in the DB with `payload`.
+ * `payload` shape: { canonical -> { category, variants[] } }
+ *
+ * Atomic: wraps in a transaction so a failed write leaves the DB
+ * unchanged.
+ */
+function saveAliasesToDb(payload) {
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_aliases').run();
+    const insert = db.prepare(
+      'INSERT OR REPLACE INTO config_aliases (source, canonical, created_at) VALUES (?, ?, ?)'
     )
-  );
-  
-  // Execute remaining operations in parallel
-  await Promise.all(operations);
-  tagCache.invalidate();
-  const time = Number(process.hrtime.bigint() - start) / 1000000;
-  console.log(`✅ Autocommit tags completed in ${time.toFixed(2)}ms`);
+    if (payload && typeof payload === 'object') {
+      for (const [canonical, entry] of Object.entries(payload)) {
+        if (!entry || !Array.isArray(entry.variants)) continue;
+        for (const source of entry.variants) {
+          if (typeof source === 'string' && source.length > 0) {
+            insert.run(source, canonical, Date.now());
+          }
+        }
+      }
+    }
+  });
+  tx();
 }
 
-// ============================================
-// TAXONOMY/CONFIG MANAGEMENT
-// ============================================
 /**
- * Load or initialize tag taxonomy
+ * Replace the exclusions section. payload = { blacklist[], whitelist[] }.
+ * blacklist -> config_blacklist, whitelist -> config_blacklist_rejected.
  */
-async function loadOrInitializeTaxonomy() {
-  try {
-    const data = await fs.readFile(TAXONOMY_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      console.log('📝 tag-taxonomy.json not found, creating with initial analysis...');
-      
-      // Create empty structure
-      const emptyTaxonomy = {
-        aliases: {},
-        exclusions: {
-          blacklist: [],
-          whitelist: []
-        },
-        hierarchy: {},
-        suggestions: {
-          aliases: [],
-          garbage: [],
-          dismissed: {
-            aliases: [],
-            garbage: []
-          },
-          lastRun: null
-        }
-      };
-      
-      await fs.writeFile(TAXONOMY_FILE, JSON.stringify(emptyTaxonomy, null, 2));
-      
-      // Run initial analysis
-      const suggestions = await runTagAnalysis();
-      emptyTaxonomy.suggestions = suggestions;
-      await fs.writeFile(TAXONOMY_FILE, JSON.stringify(emptyTaxonomy, null, 2));
-      
-      return emptyTaxonomy;
+function saveExclusionsToDb(payload) {
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_blacklist').run();
+    db.prepare('DELETE FROM config_blacklist_rejected').run();
+
+    const insertBl = db.prepare(
+      'INSERT OR IGNORE INTO config_blacklist (tag) VALUES (?)'
+    );
+    const insertWl = db.prepare(
+      'INSERT OR IGNORE INTO config_blacklist_rejected (tag) VALUES (?)'
+    );
+
+    if (payload && Array.isArray(payload.blacklist)) {
+      for (const tag of payload.blacklist) {
+        if (typeof tag === 'string' && tag.length > 0) insertBl.run(tag);
+      }
     }
-    throw error;
+    if (payload && Array.isArray(payload.whitelist)) {
+      for (const tag of payload.whitelist) {
+        if (typeof tag === 'string' && tag.length > 0) insertWl.run(tag);
+      }
+    }
+  });
+  tx();
+}
+
+/**
+ * Replace the hierarchy section.
+ * payload shape: { parent -> [child, child, ...] }
+ */
+function saveHierarchyToDb(payload) {
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_hierarchy').run();
+    const insert = db.prepare(
+      'INSERT OR IGNORE INTO config_hierarchy (parent, child) VALUES (?, ?)'
+    );
+    if (payload && typeof payload === 'object') {
+      for (const [parent, children] of Object.entries(payload)) {
+        if (!Array.isArray(children)) continue;
+        for (const child of children) {
+          if (typeof child === 'string' && child.length > 0) {
+            insert.run(parent, child);
+          }
+        }
+      }
+    }
+  });
+  tx();
+}
+
+// ============================================================
+// CONFIG — auto-suggester
+// ============================================================
+
+/**
+ * Strip "(parenthetical)" suffixes from a tag name. Used during
+ * grouping so "tenma_maemi (1st costume)" hashes to "tenma_maemi".
+ *
+ *   "foo_bar"               → "foo_bar"
+ *   "foo_bar (1st costume)" → "foo_bar"
+ *   "foo (a) (b)"           → "foo"
+ */
+function stripParentheticals(name) {
+  return name.replace(/\s*\([^)]*\)/g, '').trim();
+}
+
+/**
+ * Aggressive normalize for grouping comparisons. Used ONLY to decide
+ * which tags belong in the same group — NOT what the canonical
+ * stored form looks like.
+ *
+ *   "Elira Pendora (1st)" → "elirapendora"
+ *   "elira_pendora"       → "elirapendora"
+ *   "ElirA-pendora"       → "elirapendora"
+ */
+function aggressiveNormalize(name) {
+  return stripParentheticals(name)
+    .toLowerCase()
+    .replace(/[_\s\-]+/g, '')
+    .trim();
+}
+
+/**
+ * Run the analyzer. Wipes existing suggestions, scans staging_tags,
+ * populates config_aliases_suggestions + config_blacklist_suggestions.
+ *
+ * Returns { aliasGroups, blacklistCandidates, elapsed }.
+ */
+function runSuggesterAnalysis() {
+  const t0 = Date.now();
+
+  // 1. Load all tags + counts. Single query.
+  const allTags = db.prepare(`
+    SELECT category, name, post_count
+    FROM staging_tags
+    WHERE post_count > 0
+  `).all();
+
+  // 2. Load skip lists.
+  const aliasSources    = new Set(db.prepare('SELECT source FROM config_aliases').all().map(r => r.source));
+  const aliasCanonicals = new Set(db.prepare('SELECT DISTINCT canonical FROM config_aliases').all().map(r => r.canonical));
+  const aliasRejected   = new Set(db.prepare('SELECT source FROM config_aliases_rejected').all().map(r => r.source));
+  const blacklistActive = new Set(db.prepare('SELECT tag FROM config_blacklist').all().map(r => r.tag));
+  const blacklistReject = new Set(db.prepare('SELECT tag FROM config_blacklist_rejected').all().map(r => r.tag));
+
+  // Helper to get the full "category:name" form
+  const fullTag = (category, name) =>
+    category === 'general' ? name : `${category}:${name}`;
+
+  // ============================================================
+  // ALIAS SUGGESTIONS
+  // ============================================================
+
+  // Group all tags by aggressiveNormalize(name). Cross-category by
+  // design — general:dokibird and character:dokibird group together.
+  const groups = new Map();
+  for (const row of allTags) {
+    const key = aggressiveNormalize(row.name);
+    if (!key) continue;  // skip empty/whitespace-only after normalize
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
   }
-}
 
-/**
- * Save taxonomy to disk
- */
-async function saveTaxonomy(taxonomy) {
-  await fs.writeFile(TAXONOMY_FILE, JSON.stringify(taxonomy, null, 2));
-  // Reload in tag processor
-  await tagProcessor.reloadConfig();
-}
+  // For each group with > 1 distinct full tags, build a suggestion.
+  const aliasInserts = [];
+  let aliasGroups = 0;
 
-/**
- * Run tag analysis and generate suggestions
- */
-async function runTagAnalysis() {
-  console.log('🔍 Running tag analysis...');
-  
-  try {
-    // Load current taxonomy to get dismissed suggestions
-    let currentTaxonomy;
-    try {
-      const data = await fs.readFile(TAXONOMY_FILE, 'utf8');
-      currentTaxonomy = JSON.parse(data);
-    } catch (error) {
-      currentTaxonomy = {
-        aliases: {},
-        exclusions: { blacklist: [], whitelist: [] },
-        hierarchy: {},
-        suggestions: { dismissed: { aliases: [], garbage: [] } }
-      };
+  for (const [key, members] of groups) {
+    // Distinct full forms in this group
+    const byFullTag = new Map();
+    for (const m of members) {
+      const ft = fullTag(m.category, m.name);
+      if (!byFullTag.has(ft)) byFullTag.set(ft, { ...m, full: ft });
+      else byFullTag.get(ft).post_count += m.post_count;  // shouldn't happen, defensive
     }
-    
-    const existingAliases = new Set();
-    for (const [canonicalTag, data] of Object.entries(currentTaxonomy.aliases || {})) {
-      // canonicalTag is already like "meta:virtual_youtuber" or "tagname"
-      existingAliases.add(canonicalTag.toLowerCase());
-      
-      // Also add all variants so they don't get re-suggested
-      if (data.variants && Array.isArray(data.variants)) {
-        for (const variant of data.variants) {
-          existingAliases.add(variant.toLowerCase());
-        }
-      }
-    }
-    const blacklist = new Set(currentTaxonomy.exclusions?.blacklist || []);
-    const whitelist = new Set(currentTaxonomy.exclusions?.whitelist || []);
-    const dismissedAliases = new Set(currentTaxonomy.suggestions?.dismissed?.aliases || []);
-    const dismissedGarbage = new Set(currentTaxonomy.suggestions?.dismissed?.garbage || []);
-    
-    // 1. Analyze staging JSON files
-    const fileAnalyzer = new TagAnalyzer(STAGING_DIR);
-    await fileAnalyzer.scanDirectory();
-    fileAnalyzer.analyze();
-    const fileReport = fileAnalyzer.generateReport();
-    
-    // 2. Analyze database
-    const dbAnalyzer = new DatabaseAnalyzer(DB_PATH);
-    await dbAnalyzer.connect();
-    const dbVariations = await dbAnalyzer.findPotentialVariations({ skipCategories: [] });
-    dbAnalyzer.close();
-    
-    // 3. Merge and filter suggestions
-    const aliasSuggestions = [];
-    const garbageSuggestions = [];
-    
-    // Process file analyzer inconsistent naming
-    for (const issue of fileReport.issues.inconsistentNaming) {
-      const canonical = issue.suggestedCanonical;
-      const { category, name: canonicalName } = parseTagName(canonical);
-      const normalizedName = canonicalName.toLowerCase().replace(/[\s-]+/g, '_');
-      const fullTag = category && category !== 'general' ? `${category}:${normalizedName}` : normalizedName;
+    if (byFullTag.size < 2) continue;  // not a group
 
-      if (existingAliases.has(fullTag)) continue;
-      if (dismissedAliases.has(fullTag)) continue;
-      if (blacklist.has(canonical) || whitelist.has(canonical)) continue;
-      
-      // Extract variants (excluding the canonical itself)
-      const variants = issue.variants
-        .filter(v => v.tag !== canonical)
-        .map(v => v.tag);
-      
-      if (variants.length > 0) {
-        const { category } = parseTagName(canonical);
-        const normalizedName = canonicalName.toLowerCase().replace(/[\s-]+/g, '_');
-        const fullCanonical = category && category !== 'general' 
-          ? `${category}:${normalizedName}` 
-          : normalizedName;
-        
-        aliasSuggestions.push({
-          canonical: fullCanonical,  // Store WITH category prefix
-          category,
-          variants,
-          confidence: Math.min(0.95, issue.totalOccurrences / 100)
-        });
-      }
-    }
-    
-    // Process database variations
-    for (const dup of dbVariations) {
-      const canonical = dup.canonical;
-      
-      // Parse and normalize
-      const { category, name } = parseTagName(canonical);
-      const normalizedName = name.toLowerCase().replace(/[\s-]+/g, '_');
-      
-      // Reconstruct full tag for comparison
-      const fullTag = category && category !== 'general' ? `${category}:${normalizedName}` : normalizedName;
+    const variants = [...byFullTag.values()];
 
-      // Skip if already in user config or dismissed
-      if (existingAliases.has(fullTag)) continue;
-      if (dismissedAliases.has(fullTag)) continue;
-      if (blacklist.has(canonical) || whitelist.has(canonical)) continue;
-      
-      // Check if we already have this suggestion from file analysis
-      const existing = aliasSuggestions.find(s => s.canonical === canonical);
-      if (existing) continue;
-      
-      const variants = dup.variants
-        .filter(v => v.original !== canonical)
-        .map(v => v.original);
-      
-      if (variants.length > 0 && dup.variants.length > 1) {
-        const category = dup.variants[0].category || 'general';
-        const totalCount = dup.variants.reduce((sum, v) => sum + v.count, 0);
-        
-        aliasSuggestions.push({
-          canonical: canonical.toLowerCase().replace(/[\s-]+/g, '_'),
-          category,
-          variants,
-          confidence: Math.min(0.95, totalCount / 50)
-        });
-      }
-    }
-    
-    // Process garbage suggestions
-    for (const issue of fileReport.issues.likelyGarbage) {
-      const tag = issue.tag;
-      
-      // Skip if in whitelist or dismissed
-      if (whitelist.has(tag)) continue;
-      if (dismissedGarbage.has(tag)) continue;
-      if (blacklist.has(tag)) continue; // Already blacklisted
-      
-      garbageSuggestions.push({
-        tag,
-        reason: issue.reason,
-        count: issue.count
+    // Pick canonical:
+    //   1. Prefer non-'general' categories (any non-general beats general)
+    //   2. Among those, highest post_count wins
+    //   3. Tiebreak alphabetically
+    variants.sort((a, b) => {
+      const aGen = a.category === 'general' ? 1 : 0;
+      const bGen = b.category === 'general' ? 1 : 0;
+      if (aGen !== bGen) return aGen - bGen;          // non-general first
+      if (a.post_count !== b.post_count) return b.post_count - a.post_count;
+      return a.full.localeCompare(b.full);
+    });
+
+    const winner = variants[0];
+    const canonicalName = stripParentheticals(winner.name)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '_');
+    const canonical = winner.category === 'general'
+      ? canonicalName
+      : `${winner.category}:${canonicalName}`;
+    const sources   = variants.slice(1).map(v => ({ full: v.full, count: v.post_count }));
+
+    // Skip the entire group if the canonical is itself an alias source
+    // (would create a chain), is blacklisted, or is in either rejected list.
+    if (aliasSources.has(canonical))    continue;
+    if (blacklistActive.has(canonical)) continue;
+
+    // Filter sources: drop ones already covered by config or rejected,
+    // OR ones whose normalized form already equals the canonical
+    // (canonicalize-on-save handles those for free, no alias needed).
+    const filteredSources = sources.filter(s =>
+      !aliasSources.has(s.full)    &&
+      !aliasRejected.has(s.full)   &&
+      !blacklistActive.has(s.full) &&
+      s.full !== canonical         &&
+      normalizeTag(s.full) !== canonical
+    );
+    if (filteredSources.length === 0) continue;
+
+    // Skip if canonical is already a known canonical AND every source is too —
+    // means this group is fully resolved already.
+    if (aliasCanonicals.has(canonical) &&
+        filteredSources.every(s => aliasCanonicals.has(s.full))) continue;
+
+    const groupCount = variants.reduce((sum, v) => sum + v.post_count, 0);
+
+    for (const s of filteredSources) {
+      aliasInserts.push({
+        canonical,
+        source: s.full,
+        group_count: groupCount,
+        source_count: s.count,
       });
     }
-    
-    // Sort suggestions by confidence/count
-    aliasSuggestions.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
-    garbageSuggestions.sort((a, b) => b.count - a.count);
-    
-    console.log(`✅ Analysis complete: ${aliasSuggestions.length} alias suggestions, ${garbageSuggestions.length} garbage suggestions`);
-    
-    return {
-      aliases: aliasSuggestions.slice(0, 50), // Limit to top 50
-      garbage: garbageSuggestions.slice(0, 50),
-      dismissed: currentTaxonomy.suggestions?.dismissed || { aliases: [], garbage: [] },
-      lastRun: new Date().toISOString()
-    };
-    
-  } catch (error) {
-    console.error('❌ Analysis failed:', error);
-    return {
-      aliases: [],
-      garbage: [],
-      dismissed: { aliases: [], garbage: [] },
-      lastRun: new Date().toISOString()
-    };
+    aliasGroups++;
+  }
+
+  // ============================================================
+  // BLACKLIST SUGGESTIONS
+  // ============================================================
+
+  const NON_ASCII_RE = /[^\x00-\x7F]/;
+  const blacklistInserts = [];
+
+  for (const row of allTags) {
+    const ft = fullTag(row.category, row.name);
+
+    // Skip lists
+    if (aliasSources.has(ft))    continue;  // already gets canonicalized
+    if (blacklistActive.has(ft)) continue;
+    if (blacklistReject.has(ft)) continue;
+
+    let reason = null;
+    if (NON_ASCII_RE.test(row.name)) {
+      reason = 'non-ascii';
+    } else if (row.post_count <= 1) {
+      reason = 'low-count';
+    }
+    if (!reason) continue;
+
+    blacklistInserts.push({ tag: ft, reason, post_count: row.post_count });
+  }
+
+  // ============================================================
+  // COMMIT
+  // ============================================================
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_aliases_suggestions').run();
+    db.prepare('DELETE FROM config_blacklist_suggestions').run();
+
+    if (aliasInserts.length > 0) {
+      const insert = db.prepare(`
+        INSERT INTO config_aliases_suggestions (canonical, source, group_count, source_count)
+        VALUES (@canonical, @source, @group_count, @source_count)
+      `);
+      for (const row of aliasInserts) insert.run(row);
+    }
+
+    if (blacklistInserts.length > 0) {
+      const insert = db.prepare(`
+        INSERT INTO config_blacklist_suggestions (tag, reason, post_count)
+        VALUES (@tag, @reason, @post_count)
+      `);
+      for (const row of blacklistInserts) insert.run(row);
+    }
+  });
+  tx();
+
+  const elapsed = Date.now() - t0;
+  console.log(
+    `[suggester] ${allTags.length} tags scanned, ` +
+    `${aliasGroups} alias groups (${aliasInserts.length} sources), ` +
+    `${blacklistInserts.length} blacklist candidates, ${elapsed}ms`
+  );
+
+  return {
+    aliasGroups,
+    aliasSourcesCount: aliasInserts.length,
+    blacklistCandidates: blacklistInserts.length,
+    elapsed,
+  };
+}
+
+// ============================================================
+// CONFIG — JSON I/O (export + canonize)
+// ============================================================
+
+/**
+ * Export aliases as the documented JSON shape.
+ * Groups all (source, canonical) rows by canonical.
+ */
+function exportAliases() {
+  const rows = db.prepare(
+    'SELECT source, canonical FROM config_aliases ORDER BY canonical, source'
+  ).all();
+
+  const byCanonical = new Map();
+  for (const { source, canonical } of rows) {
+    if (!byCanonical.has(canonical)) byCanonical.set(canonical, []);
+    byCanonical.get(canonical).push(source);
+  }
+
+  const aliases = [];
+  for (const [canonical, sources] of byCanonical) {
+    aliases.push({ canonical, sources });
+  }
+  return { aliases };
+}
+
+/**
+ * Validate + canonize aliases. Atomic — wipes the section then loads
+ * from body. If validation fails, throws and DB is unchanged.
+ *
+ * Errors:
+ *   - body shape wrong → 400
+ *   - duplicate source under different canonicals → 400 with offender
+ */
+function canonizeAliases(body) {
+  if (!body || !Array.isArray(body.aliases)) {
+    throw new HttpError(400, 'Body must be { aliases: [...] }');
+  }
+
+  // Validate + flatten in one pass. Track sources to detect dupes.
+  const flat = [];
+  const seen = new Map();  // source -> canonical
+  for (let i = 0; i < body.aliases.length; i++) {
+    const entry = body.aliases[i];
+    if (!entry || typeof entry.canonical !== 'string' || !entry.canonical) {
+      throw new HttpError(400, `aliases[${i}].canonical missing or invalid`);
+    }
+    if (!Array.isArray(entry.sources)) {
+      throw new HttpError(400, `aliases[${i}].sources must be an array`);
+    }
+    for (let j = 0; j < entry.sources.length; j++) {
+      const source = entry.sources[j];
+      if (typeof source !== 'string' || !source) {
+        throw new HttpError(400, `aliases[${i}].sources[${j}] must be a non-empty string`);
+      }
+      if (seen.has(source) && seen.get(source) !== entry.canonical) {
+        throw new HttpError(400,
+          `Duplicate source "${source}" maps to both "${seen.get(source)}" and "${entry.canonical}"`);
+      }
+      seen.set(source, entry.canonical);
+      flat.push([source, entry.canonical]);
+    }
+  }
+
+  // All clear — write atomically.
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_aliases').run();
+    const insert = db.prepare(
+      'INSERT INTO config_aliases (source, canonical, created_at) VALUES (?, ?, ?)'
+    );
+    for (const [source, canonical] of flat) insert.run(source, canonical, Date.now());
+  });
+  tx();
+
+  return { count: flat.length };
+}
+
+/**
+ * Export hierarchy as the documented JSON shape.
+ * Groups (parent, child) rows by parent.
+ */
+function exportHierarchy() {
+  const rows = db.prepare(
+    'SELECT parent, child FROM config_hierarchy ORDER BY parent, child'
+  ).all();
+
+  const byParent = new Map();
+  for (const { parent, child } of rows) {
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(child);
+  }
+
+  const hierarchy = [];
+  for (const [parent, children] of byParent) {
+    hierarchy.push({ parent, children });
+  }
+  return { hierarchy };
+}
+
+/**
+ * Validate + canonize hierarchy.
+ * Detects cycles via DFS before commit — refuses on cycle with 400.
+ */
+function canonizeHierarchy(body) {
+  if (!body || !Array.isArray(body.hierarchy)) {
+    throw new HttpError(400, 'Body must be { hierarchy: [...] }');
+  }
+
+  // Build adjacency list while validating
+  const adj = new Map();  // parent -> Set<child>
+  const flat = [];
+
+  for (let i = 0; i < body.hierarchy.length; i++) {
+    const entry = body.hierarchy[i];
+    if (!entry || typeof entry.parent !== 'string' || !entry.parent) {
+      throw new HttpError(400, `hierarchy[${i}].parent missing or invalid`);
+    }
+    if (!Array.isArray(entry.children)) {
+      throw new HttpError(400, `hierarchy[${i}].children must be an array`);
+    }
+    if (!adj.has(entry.parent)) adj.set(entry.parent, new Set());
+    for (let j = 0; j < entry.children.length; j++) {
+      const child = entry.children[j];
+      if (typeof child !== 'string' || !child) {
+        throw new HttpError(400,
+          `hierarchy[${i}].children[${j}] must be a non-empty string`);
+      }
+      if (child === entry.parent) {
+        throw new HttpError(400, `Self-edge: "${entry.parent}" cannot be its own child`);
+      }
+      adj.get(entry.parent).add(child);
+      flat.push([entry.parent, child]);
+    }
+  }
+
+  // Cycle detection — DFS with three colors (white=unvisited, gray=in
+  // progress, black=done). Re-encounter a gray node = cycle.
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color = new Map();
+  // Initialize colors for every node mentioned (parent or child)
+  for (const [parent, children] of adj) {
+    if (!color.has(parent)) color.set(parent, WHITE);
+    for (const c of children) if (!color.has(c)) color.set(c, WHITE);
+  }
+
+  function dfs(node, path) {
+    color.set(node, GRAY);
+    path.push(node);
+    const children = adj.get(node);
+    if (children) {
+      for (const c of children) {
+        const cc = color.get(c);
+        if (cc === GRAY) {
+          // Cycle found — extract the cycle path for a useful error.
+          const startIdx = path.indexOf(c);
+          const cyclePath = path.slice(startIdx).concat(c).join(' → ');
+          throw new HttpError(400, `Cycle detected: ${cyclePath}`);
+        } else if (cc === WHITE) {
+          dfs(c, path);
+        }
+      }
+    }
+    color.set(node, BLACK);
+    path.pop();
+  }
+
+  for (const node of color.keys()) {
+    if (color.get(node) === WHITE) dfs(node, []);
+  }
+
+  // All clear — commit
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_hierarchy').run();
+    const insert = db.prepare(
+      'INSERT INTO config_hierarchy (parent, child) VALUES (?, ?)'
+    );
+    for (const [parent, child] of flat) insert.run(parent, child);
+  });
+  tx();
+
+  return { count: flat.length };
+}
+
+/**
+ * Export blacklist as the documented JSON shape.
+ */
+function exportBlacklist() {
+  const rows = db.prepare(
+    'SELECT tag FROM config_blacklist ORDER BY tag'
+  ).all();
+  return { blacklist: rows.map(r => r.tag) };
+}
+
+/**
+ * Validate + canonize blacklist.
+ */
+function canonizeBlacklist(body) {
+  if (!body || !Array.isArray(body.blacklist)) {
+    throw new HttpError(400, 'Body must be { blacklist: [...] }');
+  }
+
+  const seen = new Set();
+  for (let i = 0; i < body.blacklist.length; i++) {
+    const tag = body.blacklist[i];
+    if (typeof tag !== 'string' || !tag) {
+      throw new HttpError(400, `blacklist[${i}] must be a non-empty string`);
+    }
+    seen.add(tag);
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM config_blacklist').run();
+    const insert = db.prepare(
+      'INSERT OR IGNORE INTO config_blacklist (tag) VALUES (?)'
+    );
+    for (const tag of seen) insert.run(tag);
+  });
+  tx();
+
+  return { count: seen.size };
+}
+
+// ============================================================
+// CONFIG — canonicalize pipeline
+// ============================================================
+
+/**
+ * Canonical normalization for raw tag strings.
+ *   - toLowerCase
+ *   - spaces collapsed to underscores
+ *
+ * Applied to the NAME portion only. The category prefix (everything
+ * before the first ':') is preserved as-is.
+ *
+ * Example:
+ *   "Character:Elira Pendora" → "character:elira_pendora"
+ *   "Dizzy Dokuro"            → "dizzy_dokuro"
+ */
+function normalizeTag(tag) {
+  if (typeof tag !== 'string' || !tag) return tag;
+  if (tag.includes(':')) {
+    const [category, ...rest] = tag.split(':');
+    const name = rest.join(':')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '_');
+    return `${category.toLowerCase()}:${name}`;
+  }
+  return tag.toLowerCase().trim().replace(/\s+/g, '_');
+}
+
+/**
+ * Apply alias → hierarchy → blacklist transformations to a tag list.
+ * Returns a new sorted, deduped array of "category:name" strings.
+ *
+ * Pure function over DB state — for a given DB snapshot, the same
+ * input always produces the same output.
+ */
+function canonicalize(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return [];
+
+  // ---------- Step 1: Alias ----------
+  // Look up each raw input through config_aliases. If matched, replace
+  // with the canonical form. If not, keep as-is (already canonical or
+  // simply unknown).
+  //
+  // Aliases are stored with the source as PK — exact match. We don't
+  // case-fold or whitespace-collapse on the lookup; the source must
+  // match what the user typed. (If you want fuzzy matching, that's a
+  // step 9.5 feature.)
+  const aliasLookup = db.prepare(
+    'SELECT canonical FROM config_aliases WHERE source = ?'
+  );
+
+  const afterAlias = new Set();
+  for (const tag of tags) {
+    if (typeof tag !== 'string' || !tag) continue;
+    const normalized = normalizeTag(tag);
+    const hit = aliasLookup.get(tag) || aliasLookup.get(normalized);
+    afterAlias.add(hit ? hit.canonical : normalized);
+  }
+  // ---------- Step 2: Hierarchy ----------
+  // For each tag in `afterAlias`:
+  //   (a) walk ancestors transitively, accumulate
+  //   (b) pull direct children where category prefix is "meta:"
+  //
+  // Ancestor walk uses a visited set to defend against cycles even
+  // though canonize-time validation should prevent them.
+
+  const ancestorOf = db.prepare(
+    'SELECT parent FROM config_hierarchy WHERE child = ?'
+  );
+  const childrenOf = db.prepare(
+    'SELECT child FROM config_hierarchy WHERE parent = ?'
+  );
+
+  const expanded = new Set(afterAlias);
+  for (const tag of afterAlias) {
+    // (a) ancestors
+    const queue = [tag];
+    const visited = new Set([tag]);
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      const parents = ancestorOf.all(cur).map(r => r.parent);
+      for (const p of parents) {
+        if (visited.has(p)) continue;
+        visited.add(p);
+        expanded.add(p);
+        queue.push(p);
+      }
+    }
+    // (b) direct meta children of the original tag (not of the
+    // ancestors — that would defeat the "phase_connect alone shouldn't
+    // drag in dizzy" invariant).
+    const directChildren = childrenOf.all(tag).map(r => r.child);
+    for (const c of directChildren) {
+      if (c.startsWith('meta:')) expanded.add(c);
+    }
+  }
+
+  // ---------- Step 3: Blacklist ----------
+  // Drop anything in config_blacklist. Done as a single IN query for
+  // efficiency — even though we then filter in-memory.
+  const blacklistRows = db.prepare(
+    'SELECT tag FROM config_blacklist'
+  ).all();
+  const blacklist = new Set(blacklistRows.map(r => r.tag));
+
+  const filtered = [...expanded].filter(t => !blacklist.has(t));
+
+  // Stable sort for deterministic output (helps diff sidecars cleanly)
+  filtered.sort();
+  return filtered;
+}
+
+function handleConfigError(err, res) {
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ error: err.message });
+  } else {
+    console.error('Config endpoint error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * Tiny error class so route handlers can convert status+message to a
+ * proper HTTP response. Anything not throwing HttpError → 500.
+ */
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
   }
 }
 
@@ -740,194 +1827,192 @@ function parseTagName(tag) {
 /**
  * Scan staging directory and return image metadata
  */
-async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest') {
-  try {
-    const jsonFiles = glob.sync(`${STAGING_DIR}/**/*.json`);
-    const validFiles = jsonFiles.filter(f => !f.includes('.trash'));
-
-    // Build a sortable record for every file. For mtime sorts that's just
-    // a stat; for tag-count sorts we have to read the JSON.
-    const needsJson = sort === 'tags-desc' || sort === 'tags-asc';
-
-    const records = await Promise.all(
-      validFiles.map(async (file) => {
-        const stats = await fs.stat(file);
-        const record = { file, mtime: stats.mtime, tagCount: 0 };
-
-        if (needsJson) {
-          try {
-            const json = JSON.parse(await fs.readFile(file, 'utf8'));
-            if (json.tags) {
-              if (Array.isArray(json.tags)) {
-                record.tagCount = json.tags.length;
-              } else if (typeof json.tags === 'object') {
-                for (const list of Object.values(json.tags)) {
-                  if (Array.isArray(list)) record.tagCount += list.length;
-                }
-              }
-            }
-          } catch {
-            // Unreadable JSON ranks as 0 tags — better than crashing the page.
-          }
-        }
-        return record;
-      })
-    );
-
-    // Apply sort
-    switch (sort) {
-      case 'oldest':
-        records.sort((a, b) => a.mtime - b.mtime);
-        break;
-      case 'tags-desc':
-        records.sort((a, b) => b.tagCount - a.tagCount || b.mtime - a.mtime);
-        break;
-      case 'tags-asc':
-        records.sort((a, b) => a.tagCount - b.tagCount || b.mtime - a.mtime);
-        break;
-      case 'newest':
-      default:
-        records.sort((a, b) => b.mtime - a.mtime);
-        break;
-    }
-
-    const total = records.length;
-    const paginated = records.slice(offset, offset + limit);
-
-    const images = await Promise.all(
-      paginated.map(async ({ file }) => {
-        try {
-          const jsonData = JSON.parse(await fs.readFile(file, 'utf8'));
-          const id = path.basename(file, '.json');
-
-          const baseName = file.replace('.json', '');
-          const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
-          let imagePath = null;
-          for (const ext of imageExts) {
-            const testPath = baseName + ext;
-            try {
-              await fs.access(testPath);
-              imagePath = testPath;
-              break;
-            } catch {
-              // try next ext
-            }
-          }
-
-          let tags = [];
-          let tagCount = 0;
-          if (jsonData.tags) {
-            if (Array.isArray(jsonData.tags)) {
-              tags = jsonData.tags;
-              tagCount = tags.length;
-            } else if (typeof jsonData.tags === 'object') {
-              for (const [category, tagList] of Object.entries(jsonData.tags)) {
-                if (Array.isArray(tagList)) {
-                  tagCount += tagList.length;
-                  for (const tag of tagList) {
-                    tags.push(category === 'general' ? tag : `${category}:${tag}`);
-                  }
-                }
-              }
-            }
-          }
-
-          return {
-            id,
-            filename: path.basename(imagePath || file),
-            filePath: imagePath,
-            jsonPath: file,
-            tags,
-            tagCount,
-            sourceUrl: jsonData.sourceUrl,
-            imageUrl: jsonData.imageUrl,
-            poolId: jsonData.poolId || null,
-            poolIndex: jsonData.poolIndex || null,
-            phash: jsonData.imageHash,
-            mediaType: jsonData.mediaType || 'image',
-            timestamp: jsonData.timestamp,
-            booruPostId: jsonData.booruPostId || null,
-            booruPublicUrl: jsonData.booruPostId
-              ? `${BOORU_PUBLIC_URL}/posts/${jsonData.booruPostId}`
-              : null,
-          };
-        } catch (error) {
-          console.error(`Error loading ${file}:`, error);
-          return null;
-        }
-      })
-    );
-
-    return {
-      images: images.filter(Boolean),
-      hasMore: offset + limit < total,
-      total,
-    };
-  } catch (error) {
-    console.error('Error scanning staging directory:', error);
-    throw error;
+async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', uploadFilter = 'all') {
+  let orderBy;
+  switch (sort) {
+    case 'oldest':    orderBy = 'timestamp ASC, id ASC'; break;
+    case 'tags-desc': orderBy = 'tag_count DESC, timestamp DESC'; break;
+    case 'tags-asc':  orderBy = 'tag_count ASC, timestamp DESC'; break;
+    case 'newest':
+    default:          orderBy = 'timestamp DESC, id DESC'; break;
   }
+
+  // Upload-state filter — applied to both COUNT and SELECT so hasMore stays correct.
+  let whereClause = '';
+  if      (uploadFilter === 'pending')  whereClause = 'WHERE booru_post_id IS NULL';
+  else if (uploadFilter === 'uploaded') whereClause = 'WHERE booru_post_id IS NOT NULL';
+
+  const total = db.prepare(
+    `SELECT COUNT(*) AS c FROM staging_images ${whereClause}`
+  ).get().c;
+
+  const rows = db.prepare(`
+    SELECT
+      id, json_path, image_path, filename, source_url, image_hash,
+      media_type, pool_id, pool_index,
+      booru_upload_id, booru_media_asset_id, booru_post_id,
+      timestamp, tag_count
+    FROM staging_images
+    ${whereClause}
+    ORDER BY ${orderBy}
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
+
+  if (rows.length === 0) {
+    return { images: [], hasMore: false, total };
+  }
+
+  // 3. Tags for the page in one query. Aggregate the joined rows by
+  // image_id so we get { id -> ["category:name", ...] }.
+  const ids = rows.map(r => r.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const tagRows = db.prepare(`
+    SELECT
+      sit.image_id AS image_id,
+      st.category AS category,
+      st.name AS name
+    FROM staging_image_tags sit
+    JOIN staging_tags st ON st.id = sit.tag_id
+    WHERE sit.image_id IN (${placeholders})
+  `).all(...ids);
+
+  const tagsByImage = new Map();
+  for (const tr of tagRows) {
+    if (!tagsByImage.has(tr.image_id)) tagsByImage.set(tr.image_id, []);
+    tagsByImage.get(tr.image_id).push(
+      tr.category === 'general' ? tr.name : `${tr.category}:${tr.name}`
+    );
+  }
+
+  // 4. Map to the same response shape scanStagingDirectory used to return.
+  const images = rows.map(r => ({
+    id: r.id,
+    filename: r.filename || path.basename(r.image_path || r.json_path),
+    filePath: r.image_path,
+    jsonPath: r.json_path,
+    tags: tagsByImage.get(r.id) || [],
+    tagCount: r.tag_count,
+    sourceUrl: r.source_url,
+    imageUrl: r.image_path,            // legacy field — points at local file
+    poolId: r.pool_id,
+    poolIndex: r.pool_index,
+    phash: r.image_hash,
+    mediaType: r.media_type || 'image',
+    timestamp: r.timestamp,
+    booruPostId: r.booru_post_id,
+    booruPublicUrl: r.booru_post_id
+      ? `${BOORU_PUBLIC_URL}/posts/${r.booru_post_id}`
+      : null,
+  }));
+
+  return {
+    images,
+    hasMore: offset + limit < total,
+    total,
+  };
 }
 
 /**
- * Load a single staging image by ID
+ * Extract a frame from a video and save as JPEG.
+ * Output path:   STAGING_DIR/.thumbs/${id}.jpg
+ * Source frame:  1 second in (or last frame if shorter)
+ * Sizing:        fits inside size×size, preserves aspect ratio
+ *
+ * Returns the path to the cached thumbnail. Throws on ffmpeg failure.
+ */
+async function extractVideoThumbnail(videoPath, id, size = 200) {
+  await fs.mkdir(THUMBS_DIR, { recursive: true });
+  const outPath = path.join(THUMBS_DIR, `${id}.jpg`);
+
+  return new Promise((resolve, reject) => {
+    // -ss 1               Seek to 1 second
+    // -i <input>          Input file
+    // -frames:v 1         Extract exactly one frame
+    // -vf scale=...       Resize, keep aspect ratio (force_original_aspect_ratio=decrease
+    //                     fits within size×size, may produce smaller dimensions)
+    // -q:v 2              JPEG quality (2 = high, scale 1-31, lower = better)
+    // -y                  Overwrite without prompt
+    const args = [
+      '-ss', '1',
+      '-i', videoPath,
+      '-frames:v', '1',
+      '-vf', `scale=${size}:${size}:force_original_aspect_ratio=decrease`,
+      '-q:v', '2',
+      '-y',
+      outPath,
+    ];
+
+    const proc = spawn('ffmpeg', args);
+
+    // Buffer stderr — ffmpeg writes progress + errors there. We need
+    // it for diagnostics if the call fails.
+    let stderr = '';
+    proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
+
+    proc.on('error', err => {
+      // Spawning ffmpeg itself failed (e.g. not on PATH)
+      reject(new Error(`ffmpeg spawn failed: ${err.message}`));
+    });
+
+    proc.on('close', code => {
+      if (code === 0) {
+        resolve(outPath);
+      } else {
+        // Tail the stderr — full ffmpeg output is verbose
+        const tail = stderr.split('\n').slice(-10).join('\n');
+        reject(new Error(`ffmpeg exited ${code}: ${tail}`));
+      }
+    });
+  });
+}
+
+/**
+ * Load a single staging image's full metadata, sourced from the DB.
+ * Returns null if the row doesn't exist.
  */
 async function loadStagingImage(id) {
-  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
-  
-  try {
-    const jsonData = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-    
-    // Find corresponding image
-    const baseName = jsonPath.replace('.json', '');
-    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
-    let imagePath = null;
-    
-    for (const ext of imageExts) {
-      const testPath = baseName + ext;
-      try {
-        await fs.access(testPath);
-        imagePath = testPath;
-        break;
-      } catch (e) {
-        // Continue
-      }
-    }
-    
-    // Extract tags
-    let tags = [];
-    if (jsonData.tags) {
-      if (Array.isArray(jsonData.tags)) {
-        tags = jsonData.tags;
-      } else if (typeof jsonData.tags === 'object') {
-        for (const [category, tagList] of Object.entries(jsonData.tags)) {
-          if (Array.isArray(tagList)) {
-            for (const tag of tagList) {
-              tags.push(category === 'general' ? tag : `${category}:${tag}`);
-            }
-          }
-        }
-      }
-    }
-    
-    return {
-      id,
-      filename: path.basename(imagePath || jsonPath),
-      filePath: imagePath,
-      jsonPath,
-      tags,
-      sourceUrl: jsonData.sourceUrl,
-      imageUrl: jsonData.imageUrl,
-      poolId: jsonData.poolId || null,
-      poolIndex: jsonData.poolIndex || null,
-      phash: jsonData.imageHash,
-      mediaType: jsonData.mediaType || 'image',
-      timestamp: jsonData.timestamp
-    };
-  } catch (error) {
-    console.error(`Error loading staging image ${id}:`, error);
-    return null;
-  }
+  const row = db.prepare(`
+    SELECT
+      id, json_path, image_path, filename, source_url, image_hash,
+      media_type, pool_id, pool_index,
+      booru_upload_id, booru_media_asset_id, booru_post_id,
+      timestamp, tag_count
+    FROM staging_images
+    WHERE id = ?
+  `).get(id);
+
+  if (!row) return null;
+
+  // Tags: same shape as the list endpoint returns. Single JOIN.
+  const tagRows = db.prepare(`
+    SELECT st.category, st.name
+    FROM staging_image_tags sit
+    JOIN staging_tags st ON st.id = sit.tag_id
+    WHERE sit.image_id = ?
+  `).all(id);
+
+  const tags = tagRows.map(t =>
+    t.category === 'general' ? t.name : `${t.category}:${t.name}`
+  );
+
+  return {
+    id: row.id,
+    filename: row.filename || path.basename(row.image_path || row.json_path),
+    filePath: row.image_path,
+    jsonPath: row.json_path,
+    tags,
+    tagCount: row.tag_count,
+    sourceUrl: row.source_url,
+    imageUrl: row.image_path,
+    poolId: row.pool_id,
+    poolIndex: row.pool_index,
+    phash: row.image_hash,
+    mediaType: row.media_type || 'image',
+    timestamp: row.timestamp,
+    booruUploadId: row.booru_upload_id,
+    booruMediaAssetId: row.booru_media_asset_id,
+    booruPostId: row.booru_post_id,
+  };
 }
 
 /**
@@ -947,6 +2032,7 @@ async function updateStagingImage(id, updates) {
     
     // Handle tags - convert to categorized format
     if (updates.tags !== undefined) {
+      const canonicalTags = canonicalize(updates.tags);
       const categorized = {
         artist: [],
         character: [],
@@ -955,7 +2041,7 @@ async function updateStagingImage(id, updates) {
         meta: []
       };
       
-      for (const tag of updates.tags) {
+      for (const tag of canonicalTags) {
         const { category, name } = parseTagName(tag);
         if (categorized[category]) {
           categorized[category].push(name);
@@ -969,7 +2055,8 @@ async function updateStagingImage(id, updates) {
     
     // Write back
     await fs.writeFile(jsonPath, JSON.stringify(jsonData, null, 2));
-    
+    await syncSidecarToDb(id);
+
     return true;
   } catch (error) {
     console.error(`Error updating staging image ${id}:`, error);
@@ -982,39 +2069,62 @@ async function updateStagingImage(id, updates) {
  */
 async function deleteStagingImage(id) {
   try {
-    // Ensure trash directory exists
-    await fs.mkdir(TRASH_DIR, { recursive: true });
-    
-    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
-    const baseName = jsonPath.replace('.json', '');
-    
-    // Find and move JSON
-    try {
-      const trashJsonPath = path.join(TRASH_DIR, `${id}.json`);
-      await fs.rename(jsonPath, trashJsonPath);
-    } catch (error) {
-      console.error(`Failed to move JSON to trash:`, error);
+    const movedAny = await moveImageToTrash(id);
+    if (!movedAny) {
+      console.warn(`[delete] no files found for ${id}`);
+      return false;
     }
-    
-    // Find and move image
-    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
-    for (const ext of imageExts) {
-      const imagePath = baseName + ext;
-      try {
-        await fs.access(imagePath);
-        const trashImagePath = path.join(TRASH_DIR, `${id}${ext}`);
-        await fs.rename(imagePath, trashImagePath);
-        break;
-      } catch (e) {
-        // File doesn't exist, try next
-      }
-    }
-    
+    removeStagingFromDb(id);
     return true;
   } catch (error) {
     console.error(`Error deleting staging image ${id}:`, error);
     return false;
   }
+}
+
+/**
+ * Move one image's sidecar + image file to the trash directory.
+ * Idempotent enough for batch use — missing files don't throw.
+ * Returns true if at least one file was moved.
+ */
+async function moveImageToTrash(id) {
+  await fs.mkdir(TRASH_DIR, { recursive: true });
+
+  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const baseName = jsonPath.replace(/\.json$/, '');
+  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+
+  let movedAny = false;
+
+  // JSON sidecar
+  try {
+    await fs.rename(jsonPath, path.join(TRASH_DIR, `${id}.json`));
+    movedAny = true;
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`[trash] JSON move failed for ${id}: ${err.message}`);
+    }
+  }
+
+  // Image file (whichever extension exists)
+  for (const ext of imageExts) {
+    const src = baseName + ext;
+    try {
+      await fs.access(src);
+      await fs.rename(src, path.join(TRASH_DIR, `${id}${ext}`));
+      movedAny = true;
+      break;
+    } catch (err) {
+      // ENOENT just means this extension doesn't apply, try next
+    }
+  }
+
+  // Also nuke the thumbnail cache for this id
+  try {
+    await fs.unlink(path.join(THUMBS_DIR, `${id}.jpg`));
+  } catch {}  // not cached, fine
+
+  return movedAny;
 }
 
 /**
@@ -1173,6 +2283,7 @@ async function runBooruUploads({ ids, all, force }, onProgress) {
         job.metadata.booruUploadId = uploadAssetId;
         job.metadata.booruMediaAssetId = mediaAssetId;
         await fs.writeFile(job.jsonPath, JSON.stringify(job.metadata, null, 2));
+        await syncSidecarToDb(id);
 
         result = {
           id, success: true,
@@ -1338,6 +2449,17 @@ async function logDuplicateFailure(filename, errBody) {
   }
 }
 
+function countMetadataTags(metadata) {
+  if (!metadata?.tags) return 0;
+  if (Array.isArray(metadata.tags)) return metadata.tags.length;
+  if (typeof metadata.tags === 'object') {
+    return Object.values(metadata.tags)
+      .filter(Array.isArray)
+      .reduce((sum, list) => sum + list.length, 0);
+  }
+  return 0;
+}
+
 /** One worker tick — drains the pending queue once. */
 async function postWorkerTick() {
   if (POST_WORKER.running) {
@@ -1356,11 +2478,16 @@ async function postWorkerTick() {
 
     for (const { id, jsonPath, metadata } of pending) {
       try {
-        const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
-        if (aiTags.length === 0) {
-          console.warn(`[post-worker] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
+        const existingTagCount = countMetadataTags(metadata);
+        if (existingTagCount < 10) {
+          const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
+          if (aiTags.length === 0) {
+            console.warn(`[post-worker] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
+          }
+          mergeAiTags(metadata, aiTags);
+        } else {
+          console.log(`[post-worker] skipping AI tag wait for ${id} (${existingTagCount} tags already present)`);
         }
-        mergeAiTags(metadata, aiTags);
 
         const poolId = metadata.poolId;
         let parentId = null;
@@ -1400,6 +2527,7 @@ async function postWorkerTick() {
 
         metadata.booruPostId = postId;
         await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+        await syncSidecarToDb(id);
         if (poolId && !poolParents.has(poolId)) poolParents.set(poolId, postId);
       } catch (err) {
         console.error(`[post-worker] failed to post ${id}:`, err.message);
@@ -1425,6 +2553,230 @@ function kickPostWorker() {
 
 // Maintenance: catch any sidecars uploaded outside the SSE flow.
 setInterval(kickPostWorker, POST_WORKER.MAINTENANCE_INTERVAL_MS);
+
+// ============================================================
+// CONFIG — suggester routes
+// ============================================================
+
+// Trigger an analysis run.
+app.post('/api/config/suggestions/analyze', (req, res) => {
+  try {
+    const result = runSuggesterAnalysis();
+    tagCache.invalidate();   // counts may have changed implicitly; harmless
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Suggester analyze error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Paginated alias suggestions, grouped by canonical.
+//   ?limit=50&offset=0
+app.get('/api/config/suggestions/aliases', (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 50, 500));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    // Get distinct canonicals, paginated. Then load all sources for
+    // those canonicals.
+    const canonicals = db.prepare(`
+      SELECT canonical, MAX(group_count) AS group_count
+      FROM config_aliases_suggestions
+      GROUP BY canonical
+      ORDER BY group_count DESC, canonical ASC
+      LIMIT ? OFFSET ?
+    `).all(limit, offset);
+
+    const total = db.prepare(
+      'SELECT COUNT(DISTINCT canonical) AS c FROM config_aliases_suggestions'
+    ).get().c;
+
+    if (canonicals.length === 0) {
+      return res.json({ groups: [], total, limit, offset });
+    }
+
+    const placeholders = canonicals.map(() => '?').join(',');
+    const sources = db.prepare(`
+      SELECT canonical, source, source_count
+      FROM config_aliases_suggestions
+      WHERE canonical IN (${placeholders})
+      ORDER BY source_count DESC, source ASC
+    `).all(...canonicals.map(c => c.canonical));
+
+    const sourcesByCanonical = new Map();
+    for (const s of sources) {
+      if (!sourcesByCanonical.has(s.canonical)) sourcesByCanonical.set(s.canonical, []);
+      sourcesByCanonical.get(s.canonical).push({ source: s.source, count: s.source_count });
+    }
+
+    const groups = canonicals.map(c => ({
+      canonical: c.canonical,
+      group_count: c.group_count,
+      sources: sourcesByCanonical.get(c.canonical) || [],
+    }));
+
+    res.json({ groups, total, limit, offset });
+  } catch (err) {
+    console.error('Suggester list aliases error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Accept an alias suggestion. Body: { canonical: "...", sources: [...] }
+// (The full group, or a subset if user only wants some sources.)
+app.post('/api/config/suggestions/aliases/accept', (req, res) => {
+  try {
+    const { canonical, sources } = req.body || {};
+    if (typeof canonical !== 'string' || !canonical) {
+      return res.status(400).json({ error: 'canonical required' });
+    }
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return res.status(400).json({ error: 'sources must be non-empty array' });
+    }
+
+    const tx = db.transaction(() => {
+      const insertAlias = db.prepare(`
+        INSERT OR REPLACE INTO config_aliases (source, canonical, created_at) VALUES (?, ?, ?)
+      `);
+      const removeSugg = db.prepare(`
+        DELETE FROM config_aliases_suggestions
+        WHERE canonical = ? AND source = ?
+      `);
+      for (const source of sources) {
+        if (typeof source !== 'string' || !source) continue;
+        insertAlias.run(source, canonical, Date.now());
+        removeSugg.run(canonical, source);
+      }
+    });
+    tx();
+    tagCache.invalidate();
+
+    res.json({ success: true, count: sources.length });
+  } catch (err) {
+    console.error('Suggester accept aliases error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reject an alias suggestion. Body: { canonical: "...", sources: [...] }
+// Sources go to the rejected table so they don't re-surface next analyze.
+app.post('/api/config/suggestions/aliases/reject', (req, res) => {
+  try {
+    const { canonical, sources } = req.body || {};
+    if (typeof canonical !== 'string' || !canonical) {
+      return res.status(400).json({ error: 'canonical required' });
+    }
+    if (!Array.isArray(sources) || sources.length === 0) {
+      return res.status(400).json({ error: 'sources must be non-empty array' });
+    }
+
+    const tx = db.transaction(() => {
+      const insertReject = db.prepare(
+        'INSERT OR IGNORE INTO config_aliases_rejected (source) VALUES (?)'
+      );
+      const removeSugg = db.prepare(`
+        DELETE FROM config_aliases_suggestions
+        WHERE canonical = ? AND source = ?
+      `);
+      for (const source of sources) {
+        if (typeof source !== 'string' || !source) continue;
+        insertReject.run(source);
+        removeSugg.run(canonical, source);
+      }
+    });
+    tx();
+
+    res.json({ success: true, count: sources.length });
+  } catch (err) {
+    console.error('Suggester reject aliases error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Paginated blacklist suggestions.
+app.get('/api/config/suggestions/blacklist', (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 50, 500));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    const items = db.prepare(`
+      SELECT tag, reason, post_count
+      FROM config_blacklist_suggestions
+      ORDER BY post_count DESC, tag ASC
+      LIMIT ? OFFSET ?
+    `).all(limit, offset);
+
+    const total = db.prepare(
+      'SELECT COUNT(*) AS c FROM config_blacklist_suggestions'
+    ).get().c;
+
+    res.json({ items, total, limit, offset });
+  } catch (err) {
+    console.error('Suggester list blacklist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Accept blacklist suggestion(s). Body: { tags: [...] }
+app.post('/api/config/suggestions/blacklist/accept', (req, res) => {
+  try {
+    const { tags } = req.body || {};
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return res.status(400).json({ error: 'tags must be non-empty array' });
+    }
+
+    const tx = db.transaction(() => {
+      const insertBl = db.prepare(
+        'INSERT OR IGNORE INTO config_blacklist (tag) VALUES (?)'
+      );
+      const removeSugg = db.prepare(
+        'DELETE FROM config_blacklist_suggestions WHERE tag = ?'
+      );
+      for (const tag of tags) {
+        if (typeof tag !== 'string' || !tag) continue;
+        insertBl.run(tag);
+        removeSugg.run(tag);
+      }
+    });
+    tx();
+    tagCache.invalidate();
+
+    res.json({ success: true, count: tags.length });
+  } catch (err) {
+    console.error('Suggester accept blacklist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reject blacklist suggestion(s). Body: { tags: [...] }
+app.post('/api/config/suggestions/blacklist/reject', (req, res) => {
+  try {
+    const { tags } = req.body || {};
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return res.status(400).json({ error: 'tags must be non-empty array' });
+    }
+
+    const tx = db.transaction(() => {
+      const insertReject = db.prepare(
+        'INSERT OR IGNORE INTO config_blacklist_rejected (tag) VALUES (?)'
+      );
+      const removeSugg = db.prepare(
+        'DELETE FROM config_blacklist_suggestions WHERE tag = ?'
+      );
+      for (const tag of tags) {
+        if (typeof tag !== 'string' || !tag) continue;
+        insertReject.run(tag);
+        removeSugg.run(tag);
+      }
+    });
+    tx();
+
+    res.json({ success: true, count: tags.length });
+  } catch (err) {
+    console.error('Suggester reject blacklist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ============================================================
 // Route — place near the other /api/staging routes
@@ -1488,157 +2840,244 @@ app.post('/api/staging/upload-to-booru/stream', async (req, res) => {
   }
 });
 
+//Debugging
+
+app.post('/api/admin/wipe-staging', (req, res) => {
+  db.exec('DELETE FROM staging_image_tags; DELETE FROM staging_tags; DELETE FROM staging_images;');
+  res.json({ wiped: true });
+});
+
+app.get('/api/stats/logs', (req, res) => {
+  const imageLog = db.prepare('SELECT COUNT(*) AS c FROM image_log').get().c;
+  const tagLog = db.prepare('SELECT COUNT(*) AS c FROM tag_log').get().c;
+  const tagLogSeen = db.prepare('SELECT COUNT(*) AS c FROM tag_log_seen').get().c;
+  const poolLog = db.prepare('SELECT COUNT(*) AS c FROM pool_log').get().c;
+  res.json({ imageLog, tagLog, tagLogSeen, poolLog });
+});
+
 // Updated duplicate check endpoint with similarity support
-app.get('/api/images/check-duplicate/:hash', async (req, res) => {
+app.get('/api/images/check-duplicate/:hash', (req, res) => {
   try {
     const { hash } = req.params;
-    const similarityThreshold = parseInt(req.query.threshold) || 8;
-    
-    const duplicateResult = await checkForDuplicateWithSimilarity(hash, similarityThreshold);
-    
-    res.json({ 
-      exists: duplicateResult.isDuplicate,
-      exactMatch: duplicateResult.exactMatch || false,
-      duplicate: duplicateResult.originalRecord || null
-    });
-  } catch (error) {
-    console.error('Error checking duplicate:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+    const similarityThreshold = parseInt(req.query.threshold, 10) || 8;
 
-// Search tags for autocomplete
-app.get('/api/tags/search', async (req, res) => {
-  const startTime = process.hrtime.bigint();
-  
-  try {
-    const { q, limit = 30 } = req.query;
-    
-    if (!q || q.length < 2) {
-      return res.json([]);
-    }
-    
-    // Check cache first
-    const cached = tagCache.get(q);
-    if (cached) {
-      return res.json(cached);
-    }
-    
-    const tags = await promiseDb(`
-      SELECT name, category, count 
-      FROM tags 
-      WHERE name LIKE ? 
-      ORDER BY count DESC, name ASC 
-      LIMIT ?
-    `, [`%${q}%`, parseInt(limit)]);
-    
-    // Format for extension compatibility
-    const formatted = tags.map(tag => 
-      tag.category === 'general' ? tag.name : `${tag.category}:${tag.name}`
-    );
-    
-    // Cache the result
-    tagCache.set(q, formatted);
-    
-    const time = Number(process.hrtime.bigint() - startTime) / 1000000;
-    console.log(`🔍 Tag search "${q}": ${formatted.length} results in ${time.toFixed(1)}ms`);
-    
-    res.json(formatted);
-  } catch (error) {
-    console.error('Error searching tags:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Exact hash hit — fastest path. Single row by PK.
+    const exact = db.prepare(`
+      SELECT image_hash, source_url, booru_post_id, pool_id, pool_index, last_seen_ts
+      FROM image_log
+      WHERE image_hash = ?
+    `).get(hash);
 
-app.get('/api/warmup', async (req, res) => {
-  console.log('🔥 Warming up server...');
-  
-  try {
-    // Warm up database connection
-    await promiseDb('SELECT COUNT(*) as count FROM tags LIMIT 1');
-    
-    // Pre-cache common tag searches
-    const commonQueries = ['a', 'an', 'art', 'character', 'general'];
-    for (const query of commonQueries) {
-      if (query.length >= 2) {
-        const tags = await promiseDb(`
-          SELECT name, category FROM tags 
-          WHERE name LIKE ? 
-          ORDER BY count DESC 
-          LIMIT 10
-        `, [`%${query}%`]);
-        
-        const formatted = tags.map(tag => 
-          tag.category === 'general' ? tag.name : `${tag.category}:${tag.name}`
-        );
-        
-        tagCache.set(query, formatted);
+    if (exact) {
+      // Check if it's still in staging (computed flag, no extra column needed)
+      const stagingHit = db.prepare(`
+        SELECT id FROM staging_images WHERE image_hash = ? LIMIT 1
+      `).get(hash);
+
+      // Map to the legacy response shape (extension expects {url, image_url, ...}).
+      // The extension cares mainly about exists/exactMatch; the duplicate
+      // body just needs to look like a row.
+      return res.json({
+        exists: true,
+        exactMatch: true,
+        duplicate: {
+          id: stagingHit?.id ?? null,
+          url: exact.source_url,
+          image_url: null,
+          image_hash: exact.image_hash,
+          timestamp: exact.last_seen_ts,
+          booru_post_id: exact.booru_post_id,
+          pool_id: exact.pool_id,
+          pool_index: exact.pool_index,
+        },
+      });
+    }
+
+    // Fuzzy match via Hamming distance. Read all hashes once, compare
+    // in JS. Acceptably fast at ~hundreds-of-thousands scale.
+    if (similarityThreshold > 0) {
+      const all = db.prepare(`
+        SELECT image_hash, source_url, booru_post_id, pool_id, pool_index, last_seen_ts
+        FROM image_log
+        WHERE image_hash IS NOT NULL AND image_hash != ''
+      `).all();
+
+      for (const row of all) {
+        const distance = calculateHammingDistance(hash, row.image_hash);
+        if (distance <= similarityThreshold) {
+          return res.json({
+            exists: true,
+            exactMatch: false,
+            duplicate: {
+              id: null,
+              url: row.source_url,
+              image_url: null,
+              image_hash: row.image_hash,
+              timestamp: row.last_seen_ts,
+              booru_post_id: row.booru_post_id,
+              pool_id: row.pool_id,
+              pool_index: row.pool_index,
+            },
+          });
+        }
       }
     }
-    
-    console.log('✅ Server warmed up');
-    res.json({ status: 'warmed', cached: tagCache.cache.size });
-  } catch (error) {
-    console.error('❌ Warmup failed:', error);
-    res.status(500).json({ error: error.message });
+
+    res.json({ exists: false, exactMatch: false, duplicate: null });
+  } catch (err) {
+    console.error('Error checking duplicate:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/tags/search?q=term&limit=30
+//   Autocomplete from staging_tags + alias canonicals.
+//   Excludes alias sources and blacklisted tags.
+app.get('/api/tags/search', (req, res) => {
+  const startTime = process.hrtime.bigint();
+
+  try {
+    const { q, limit = 30 } = req.query;
+    if (!q || q.length < 2) return res.json([]);
+
+    const cached = tagCache.get(q);
+    if (cached) return res.json(cached);
+
+    const lim = parseInt(limit, 10) || 30;
+    const like = `%${q}%`;
+
+    const tagRows = db.prepare(`
+      SELECT
+        tl.category,
+        tl.name,
+        tl.total_uses AS post_count
+      FROM tag_log tl
+      WHERE (tl.name LIKE ? OR (tl.category || ':' || tl.name) LIKE ?)
+        AND NOT EXISTS (
+          SELECT 1 FROM config_blacklist bl
+          WHERE bl.tag = CASE
+            WHEN tl.category = 'general' THEN tl.name
+            ELSE tl.category || ':' || tl.name
+          END
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM config_aliases ca
+          WHERE ca.source = CASE
+            WHEN tl.category = 'general' THEN tl.name
+            ELSE tl.category || ':' || tl.name
+          END
+        )
+      ORDER BY tl.total_uses DESC, tl.name ASC
+      LIMIT ?
+    `).all(like, like, lim);
+
+    // Query 2: alias canonicals. Surfaces canonicals not yet used by
+    // any image. Same matching: bare name OR full prefixed form.
+    //
+    // We're matching the user's `q` against a substring of `canonical`,
+    // which is stored as the full "category:name" string. So a single
+    // LIKE on canonical handles both forms transparently.
+    const aliasRows = db.prepare(`
+      SELECT DISTINCT canonical
+      FROM config_aliases
+      WHERE canonical LIKE ?
+        AND canonical NOT IN (SELECT tag FROM config_blacklist)
+      LIMIT ?
+    `).all(like, lim);
+
+    // Build the suggestion list — staging tags first (real usage),
+    // alias canonicals second (only those NOT already in staging tags
+    // to avoid duplicates).
+    const suggestions = [];
+    const seen = new Set();
+
+    for (const row of tagRows) {
+      const formatted = row.category === 'general' ? row.name : `${row.category}:${row.name}`;
+      if (seen.has(formatted)) continue;
+      seen.add(formatted);
+      suggestions.push(formatted);
+    }
+
+    for (const row of aliasRows) {
+      if (seen.has(row.canonical)) continue;
+      seen.add(row.canonical);
+      suggestions.push(row.canonical);
+    }
+
+    // Filter out alias sources. A "Dizzy Dokuro" suggestion (alias
+    // source) is meaningless — the user wants the canonical to land
+    // in the tag list, not the source. We do this AFTER the dedupe
+    // step because:
+    //   (a) alias sources won't appear in staging_tags normally
+    //       (canonicalize-on-save converts them before storage), but
+    //       legacy sidecars from before step 9 may have raw sources
+    //       still present.
+    //   (b) cheaper than a SQL NOT EXISTS join on every query.
+    const aliasSources = new Set(
+      db.prepare('SELECT source FROM config_aliases').all().map(r => r.source)
+    );
+    const filtered = suggestions.filter(s => !aliasSources.has(s));
+
+    // Cap at limit
+    const final = filtered.slice(0, lim);
+
+    tagCache.set(q, final);
+
+    const time = Number(process.hrtime.bigint() - startTime) / 1000000;
+    console.log(`🔍 Tag search "${q}": ${final.length} results in ${time.toFixed(1)}ms`);
+
+    res.json(final);
+  } catch (err) {
+    console.error('Error searching tags:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/warmup', (req, res) => {
+  try {
+    db.prepare('SELECT 1 FROM image_log LIMIT 1').get();
+    db.prepare('SELECT 1 FROM tag_log LIMIT 1').get();
+    db.prepare('SELECT 1 FROM staging_images LIMIT 1').get();
+    db.prepare('SELECT 1 FROM staging_tags LIMIT 1').get();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Warmup error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // Get pool highest index
-app.get('/api/pools/:poolId/highest-index', async (req, res) => {
+app.get('/api/pools/:poolId/highest-index', (req, res) => {
   try {
     const { poolId } = req.params;
-    const result = await promiseDb(
-      'SELECT MAX(pool_index) as highest FROM images WHERE pool_id = ?',
-      [poolId]
-    );
-    
-    const highest = result[0]?.highest;
-    res.json({ 
-      success: true, 
-      highestIndex: highest !== null ? highest : null 
+    const row = db.prepare(`
+      SELECT highest_index AS h FROM pool_log WHERE pool_id = ?
+    `).get(poolId);
+    res.json({
+      success: true,
+      highestIndex: row?.h ?? null,
     });
-  } catch (error) {
-    console.error('Error getting pool index:', error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error('Error getting pool index:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Export database
-app.get('/api/export', async (req, res) => {
+app.get('/api/pools/new', (req, res) => {
   try {
-    const images = await promiseDb(`
-      SELECT 
-        i.*,
-        GROUP_CONCAT(
-          CASE 
-            WHEN t.category = 'general' THEN t.name 
-            ELSE t.category || ':' || t.name 
-          END
-        ) as tags
-      FROM images i
-      LEFT JOIN image_tags it ON i.id = it.image_id
-      LEFT JOIN tags t ON it.tag_id = t.id
-      GROUP BY i.id
-      ORDER BY i.created_at DESC
-    `);
-    
-    // Format for export
-    const exportData = images.map(img => ({
-      sourceUrl: img.url,
-      imageUrl: img.image_url,
-      tags: img.tags ? img.tags.split(',') : [],
-      timestamp: img.timestamp,
-      imageHash: img.image_hash,
-      mediaType: img.media_type,
-      poolId: img.pool_id,
-      poolIndex: img.pool_index
-    }));
-    
-    res.json(exportData);
-  } catch (error) {
-    console.error('Error exporting:', error);
-    res.status(500).json({ error: error.message });
+    const existsLog     = db.prepare('SELECT 1 FROM pool_log WHERE pool_id = ? LIMIT 1');
+    const existsStaging = db.prepare('SELECT 1 FROM staging_images WHERE pool_id = ? LIMIT 1');
+
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const id = Math.random().toString(36).substring(2, 10);
+      if (!existsLog.get(id) && !existsStaging.get(id)) {
+        return res.json({ poolId: id });
+      }
+    }
+    res.status(500).json({ error: 'Failed to generate unique pool ID after 50 attempts' });
+  } catch (err) {
+    console.error('Pool generation error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1652,269 +3091,108 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-app.post('/api/rebuild-from-files', async (req, res) => {
-  try {
-    const { folderPath, purgeFirst = true } = req.body;
-    
-    if (!folderPath) {
-      return res.status(400).json({ error: 'folderPath is required' });
-    }
-    
-    console.log(`🔧 Starting database rebuild from: ${folderPath}`);
-    
-    // Purge database if requested
-    if (purgeFirst) {
-      console.log('🗑️ Purging existing database...');
-      await promiseDbRun('DELETE FROM image_tags');
-      await promiseDbRun('DELETE FROM images');
-      await promiseDbRun('DELETE FROM tags');
-      console.log('✅ Database purged');
-    }
-    
-    // Find all JSON files
-    const jsonFiles = glob.sync(`${folderPath}/**/*.json`);
-    console.log(`📄 Found ${jsonFiles.length} JSON files`);
-    
-    let processed = 0;
-    let errors = 0;
-    
-    for (const jsonFile of jsonFiles) {
-      try {
-        // Read JSON metadata
-        const jsonData = JSON.parse(await fs.readFile(jsonFile, 'utf8'));
-        
-        // Find corresponding image file
-        const baseName = jsonFile.replace('.json', '');
-        const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
-        let imagePath = null;
-        
-        for (const ext of imageExts) {
-          const testPath = baseName + ext;
-          try {
-            await fs.access(testPath);
-            imagePath = testPath;
-            break;
-          } catch (e) {
-            // File doesn't exist, try next extension
-          }
-        }
-        
-        if (!imagePath) {
-          console.log(`⚠️ No image file found for ${jsonFile}`);
-          continue;
-        }
-        
-        // Compute hash from actual image file
-        let imageHash = null;
-        const isVideo = /\.(webm|mp4|mov)$/i.test(imagePath);
-        
-        if (!isVideo) {
-          imageHash = await computeImageHash(imagePath);
-        }
-        
-        // Prepare data from JSON
-        const url = jsonData.sourceUrl || jsonData.url || 'unknown';
-        const imageUrl = jsonData.imageUrl || '';
-        const mediaType = jsonData.mediaType || (isVideo ? 'video' : 'image');
-        const timestamp = jsonData.timestamp || new Date().toISOString();
-        const poolId = jsonData.poolId || null;
-        const poolIndex = jsonData.poolIndex || null;
-        
-        // Extract tags
-        let tags = [];
-        if (jsonData.tags) {
-          if (Array.isArray(jsonData.tags)) {
-            // Tags as array: ["general:tag1", "artist:tag2"]
-            tags = jsonData.tags;
-          } else if (typeof jsonData.tags === 'object') {
-            // Tags as object: {"general": ["tag1"], "artist": ["tag2"]}
-            for (const [category, tagList] of Object.entries(jsonData.tags)) {
-              if (Array.isArray(tagList)) {
-                for (const tag of tagList) {
-                  tags.push(category === 'general' ? tag : `${category}:${tag}`);
-                }
-              }
-            }
-          }
-        }
-        
-        if (tags.length === 0) {
-          console.log(`⚠️ No tags found in ${jsonFile}`);
-          continue;
-        }
-        
-        // Insert into database
-        const imageResult = await promiseDbRun(`
-          INSERT INTO images (url, image_url, image_hash, pool_id, pool_index, media_type, timestamp, file_path)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [url, imageUrl, imageHash, poolId, poolIndex, mediaType, timestamp, imagePath]);
-        
-        const imageId = imageResult.id;
-        
-        // Process tags
-        await processBatchTagsAutocommit(imageId, tags);
-        
-        processed++;
-        if (processed % 10 === 0) {
-          console.log(`📊 Processed ${processed}/${jsonFiles.length} files...`);
-        }
-        
-      } catch (error) {
-        console.error(`❌ Error processing ${jsonFile}:`, error);
-        errors++;
-      }
-    }
-    
-    console.log(`✅ Database rebuild complete: ${processed} processed, ${errors} errors`);
-    
-    res.json({
-      success: true,
-      processed,
-      errors,
-      total: jsonFiles.length
-    });
-    
-  } catch (error) {
-    console.error('❌ Rebuild failed:', error);
-    res.status(500).json({ error: error.message });
-  }
+// --- Aliases ---
+app.get('/api/config/aliases/export', (req, res) => {
+  try { res.json(exportAliases()); }
+  catch (err) { handleConfigError(err, res); }
 });
 
-// TAG VISUALIZATION
-// Get all tags with their relationships for visualization
-app.get('/api/admin/tag-graph', async (req, res) => {
+app.post('/api/config/aliases/canonize', (req, res) => {
   try {
-    // Get all tags with counts
-    const tags = await promiseDb(`
-      SELECT name, category, count 
-      FROM tags 
-      WHERE category != 'general'
-      ORDER BY count DESC
-    `);
-
-    // Get current hierarchy from taxonomy
-    const taxonomyData = await fs.readFile('./tag-taxonomy.json', 'utf8');
-    const taxonomy = JSON.parse(taxonomyData);
-
-    // Format for visualization
-    const nodes = tags.map(tag => ({
-      id: tag.name,
-      label: tag.name,
-      category: tag.category,
-      count: tag.count,
-      parents: taxonomy.hierarchy?.[tag.name]?.parents || []
-    }));
-
-    // Get all aliases
-    const aliases = {};
-    if (taxonomy.aliases) {
-      for (const [category, categoryAliases] of Object.entries(taxonomy.aliases)) {
-        if (category.startsWith('_')) continue;
-        for (const [variation, canonical] of Object.entries(categoryAliases)) {
-          if (!aliases[canonical]) {
-            aliases[canonical] = [];
-          }
-          aliases[canonical].push(variation);
-        }
-      }
-    }
-
-    res.json({
-      nodes,
-      aliases,
-      taxonomy: taxonomy.hierarchy || {}
-    });
-  } catch (error) {
-    console.error('Error generating tag graph:', error);
-    res.status(500).json({ error: error.message });
-  }
+    const result = canonizeAliases(req.body);
+    tagCache.invalidate();           // <-- NEW
+    res.json({ success: true, ...result });
+  } catch (err) { handleConfigError(err, res); }
 });
+
+// --- Hierarchy ---
+app.get('/api/config/hierarchy/export', (req, res) => {
+  try { res.json(exportHierarchy()); }
+  catch (err) { handleConfigError(err, res); }
+});
+
+app.post('/api/config/hierarchy/canonize', (req, res) => {
+  try { res.json({ success: true, ...canonizeHierarchy(req.body) }); }
+  catch (err) { handleConfigError(err, res); }
+});
+
+// --- Blacklist ---
+app.get('/api/config/blacklist/export', (req, res) => {
+  try { res.json(exportBlacklist()); }
+  catch (err) { handleConfigError(err, res); }
+});
+
+app.post('/api/config/blacklist/canonize', (req, res) => {
+  try {
+    const result = canonizeBlacklist(req.body);
+    tagCache.invalidate();           // <-- NEW
+    res.json({ success: true, ...result });
+  } catch (err) { handleConfigError(err, res); }
+});
+
 // ============================================
 // API ENDPOINTS
 // ============================================
 
 // GET /api/config - Get full taxonomy/config
-app.get('/api/config', async (req, res) => {
+app.get('/api/config', (req, res) => {
   try {
-    const taxonomy = await loadOrInitializeTaxonomy();
-    res.json(taxonomy);
-  } catch (error) {
-    console.error('Error loading config:', error);
-    res.status(500).json({ error: error.message });
+    res.json(loadTaxonomyFromDb());
+  } catch (err) {
+    console.error('Error loading config:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // PUT /api/config/aliases - Update aliases
-app.put('/api/config/aliases', async (req, res) => {
+app.put('/api/config/aliases', (req, res) => {
   try {
-    const taxonomy = await loadOrInitializeTaxonomy();
-    taxonomy.aliases = req.body;
-    await saveTaxonomy(taxonomy);
+    saveAliasesToDb(req.body);
     res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving aliases:', error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error('Error saving aliases:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // PUT /api/config/exclusions - Update exclusions
-app.put('/api/config/exclusions', async (req, res) => {
+app.put('/api/config/exclusions', (req, res) => {
   try {
-    const taxonomy = await loadOrInitializeTaxonomy();
-    taxonomy.exclusions = req.body;
-    await saveTaxonomy(taxonomy);
+    saveExclusionsToDb(req.body);
     res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving exclusions:', error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error('Error saving exclusions:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // PUT /api/config/hierarchy - Update hierarchy
-app.put('/api/config/hierarchy', async (req, res) => {
+app.put('/api/config/hierarchy', (req, res) => {
   try {
-    const taxonomy = await loadOrInitializeTaxonomy();
-    taxonomy.hierarchy = req.body;
-    await saveTaxonomy(taxonomy);
+    saveHierarchyToDb(req.body);
     res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving hierarchy:', error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error('Error saving hierarchy:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // POST /api/config/analyze - Run tag analysis
-app.post('/api/config/analyze', async (req, res) => {
-  try {
-    const suggestions = await runTagAnalysis();
-    
-    // Update taxonomy with new suggestions
-    const taxonomy = await loadOrInitializeTaxonomy();
-    taxonomy.suggestions = suggestions;
-    await saveTaxonomy(taxonomy);
-    
-    res.json({
-      success: true,
-      newSuggestions: {
-        aliases: suggestions.aliases.length,
-        garbage: suggestions.garbage.length
-      }
-    });
-  } catch (error) {
-    console.error('Error running analysis:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.post('/api/config/analyze', (req, res) => {
+  res.status(501).json({ error: 'Auto-suggester is being rebuilt — see step 11+' });
 });
 
 // GET /api/staging/images - List staging images (paginated)
 app.get('/api/staging/images', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
+    const limit  = parseInt(req.query.limit)  || 50;
     const offset = parseInt(req.query.offset) || 0;
-    const validSorts = ['newest', 'oldest', 'tags-desc', 'tags-asc'];
-    const sort = validSorts.includes(req.query.sort) ? req.query.sort : 'newest';
+    const validSorts   = ['newest', 'oldest', 'tags-desc', 'tags-asc'];
+    const validUploads = ['all', 'pending', 'uploaded'];
+    const sort         = validSorts.includes(req.query.sort)     ? req.query.sort     : 'newest';
+    const uploadFilter = validUploads.includes(req.query.upload) ? req.query.upload   : 'all';
 
-    const result = await scanStagingDirectory(limit, offset, sort);
+    const result = await scanStagingDirectory(limit, offset, sort, uploadFilter);
     res.json(result);
   } catch (error) {
     console.error('Error listing staging images:', error);
@@ -1938,26 +3216,7 @@ app.get('/api/staging/images/:id', async (req, res) => {
   }
 });
 
-// PUT /api/staging/images/:id - Update staging image
-app.put('/api/staging/images/:id', async (req, res) => {
-  try {
-    const success = await updateStagingImage(req.params.id, req.body);
-    
-    if (!success) {
-      return res.status(500).json({ error: 'Failed to update image' });
-    }
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating staging image:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // PATCH /api/staging/images/batch
-//   body: { ids: string[], addTags?: string[] }
-//   Adds `addTags` to every image in `ids`, deduped (union).
-//   Returns: { total, succeeded, failed, results: [{id, success, error?}] }
 app.patch('/api/staging/images/batch', async (req, res) => {
   try {
     const { ids, addTags = [] } = req.body || {};
@@ -1976,11 +3235,8 @@ app.patch('/api/staging/images/batch', async (req, res) => {
       const jsonPath = path.join(STAGING_DIR, `${id}.json`);
       try {
         const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-
-        // Union with existing flat-tag list. The on-disk shape may be
-        // category-bucketed; we read both and write back in a normalized
-        // flat-array shape that loadStagingImage already handles.
         const existing = new Set();
+        
         if (Array.isArray(json.tags)) {
           json.tags.forEach(t => existing.add(t));
         } else if (json.tags && typeof json.tags === 'object') {
@@ -1991,8 +3247,16 @@ app.patch('/api/staging/images/batch', async (req, res) => {
         }
         addTags.forEach(t => existing.add(t));
 
-        json.tags = Array.from(existing);
+        const canonicalTags = canonicalize([...existing]);
+        const categorized = { artist: [], character: [], copyright: [], general: [], meta: [] };
+        for (const tag of canonicalTags) {
+          const { category, name } = parseTagName(tag);
+          if (categorized[category]) categorized[category].push(name);
+          else categorized.general.push(tag);
+        }
+        json.tags = categorized;
         await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+        await syncSidecarToDb(id);
         results.push({ id, success: true });
       } catch (err) {
         results.push({ id, success: false, error: err.message });
@@ -2007,6 +3271,259 @@ app.patch('/api/staging/images/batch', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in /staging/images/batch PATCH:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/staging/images/batch
+app.delete('/api/staging/images/batch', async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '`ids` must be a non-empty array' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const movedAny = await moveImageToTrash(id);
+        if (!movedAny) {
+          results.push({ id, success: false, error: 'No files found' });
+          continue;
+        }
+        removeStagingFromDb(id);
+        results.push({ id, success: true });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/batch DELETE:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/staging/images/:id - Update staging image
+app.put('/api/staging/images/:id', async (req, res) => {
+  try {
+    const success = await updateStagingImage(req.params.id, req.body);
+    
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to update image' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating staging image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/staging/images/:id/rescan
+//   Re-read the sidecar from disk and update its DB row. Useful when
+//   you've manually edited the JSON file outside the staging manager.
+app.post('/api/staging/images/:id/rescan', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+
+    // Sanity check: file actually exists?
+    try {
+      await fs.access(jsonPath);
+    } catch {
+      return res.status(404).json({ error: `Sidecar not found: ${id}.json` });
+    }
+
+    const ok = await syncSidecarToDb(id);
+    if (!ok) {
+      return res.status(500).json({ error: 'Sync failed (see server logs)' });
+    }
+
+    // Return the freshly-synced row so the caller can refresh its UI.
+    const image = await loadStagingImage(id);
+    res.json({ success: true, image });
+  } catch (err) {
+    console.error('Error in /staging/images/:id/rescan:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/staging/images/:id/refresh
+//   Re-canonicalize the image's current tags using the latest config.
+//   No-op if the resulting tags are identical to current.
+app.post('/api/staging/images/:id/refresh', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+
+    let json;
+    try {
+      json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return res.status(404).json({ error: `Sidecar not found: ${id}.json` });
+      }
+      throw err;
+    }
+
+    // Flatten current tags whether categorized or flat-array form
+    const currentFlat = [];
+    if (Array.isArray(json.tags)) {
+      currentFlat.push(...json.tags);
+    } else if (json.tags && typeof json.tags === 'object') {
+      for (const [cat, list] of Object.entries(json.tags)) {
+        if (!Array.isArray(list)) continue;
+        for (const t of list) {
+          currentFlat.push(cat === 'general' ? t : `${cat}:${t}`);
+        }
+      }
+    }
+
+    const canonicalTags = canonicalize(currentFlat);
+
+    // Convert to categorized form for write (matches save shape)
+    const categorized = { artist: [], character: [], copyright: [], general: [], meta: [] };
+    for (const tag of canonicalTags) {
+      const { category, name } = parseTagName(tag);
+      if (categorized[category]) categorized[category].push(name);
+      else categorized.general.push(tag);
+    }
+
+    // Skip write + sync if nothing changed (avoids touching mtime)
+    const beforeJson = JSON.stringify(json.tags);
+    json.tags = categorized;
+    const afterJson = JSON.stringify(json.tags);
+    const changed = beforeJson !== afterJson;
+
+    if (changed) {
+      await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+      await syncSidecarToDb(id);
+    }
+
+    res.json({
+      success: true,
+      changed,
+      tagCount: canonicalTags.length,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/:id/refresh:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/staging/refresh-all
+//   Re-canonicalize every staging image. Long-running on large
+//   datasets. Returns aggregate stats once complete.
+app.post('/api/staging/refresh-all', async (req, res) => {
+  try {
+    const allRows = db.prepare('SELECT id FROM staging_images').all();
+    const ids = allRows.map(r => r.id);
+
+    console.log(`[refresh-all] starting on ${ids.length} images`);
+    const t0 = Date.now();
+
+    let changed = 0;
+    let unchanged = 0;
+    let errored = 0;
+
+    for (const id of ids) {
+      try {
+        const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+        const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+
+        const currentFlat = [];
+        if (Array.isArray(json.tags)) {
+          currentFlat.push(...json.tags);
+        } else if (json.tags && typeof json.tags === 'object') {
+          for (const [cat, list] of Object.entries(json.tags)) {
+            if (!Array.isArray(list)) continue;
+            for (const t of list) {
+              currentFlat.push(cat === 'general' ? t : `${cat}:${t}`);
+            }
+          }
+        }
+
+        const canonicalTags = canonicalize(currentFlat);
+        const categorized = { artist: [], character: [], copyright: [], general: [], meta: [] };
+        for (const tag of canonicalTags) {
+          const { category, name } = parseTagName(tag);
+          if (categorized[category]) categorized[category].push(name);
+          else categorized.general.push(tag);
+        }
+
+        const beforeJson = JSON.stringify(json.tags);
+        json.tags = categorized;
+        const afterJson = JSON.stringify(json.tags);
+
+        if (beforeJson !== afterJson) {
+          await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+          await syncSidecarToDb(id);
+          changed++;
+        } else {
+          unchanged++;
+        }
+      } catch (err) {
+        errored++;
+        console.warn(`[refresh-all] error on ${id}: ${err.message}`);
+      }
+
+      const total = changed + unchanged + errored;
+      if (total % 1000 === 0) {
+        console.log(`[refresh-all] progress: ${total}/${ids.length}`);
+      }
+    }
+
+    const elapsed = Date.now() - t0;
+    console.log(
+      `[refresh-all] done in ${elapsed}ms — ` +
+      `changed=${changed} unchanged=${unchanged} errored=${errored}`
+    );
+
+    res.json({
+      success: true,
+      total: ids.length,
+      changed,
+      unchanged,
+      errored,
+      elapsed,
+    });
+  } catch (err) {
+    console.error('Error in /staging/refresh-all:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/staging/rebuild
+//   Drop the entire staging index and rerun the full disk scan.
+//   Equivalent to deleting the tables and restarting the server — but
+//   keeps everything else (extension hash dedup data, config, etc.)
+//   intact.
+//
+//   Long-running on first invocation if the cache is cold. Consider
+//   warning the UI before kicking this off.
+app.post('/api/staging/rebuild', async (req, res) => {
+  try {
+    // Wipe staging index tables. NOT the existing images/tags/image_tags
+    // (those are the extension's hash dedup tables). NOT the config.
+    db.exec(`
+      DELETE FROM staging_image_tags;
+      DELETE FROM staging_images;
+      DELETE FROM staging_tags;
+    `);
+
+    console.log('[rebuild] index wiped, rescanning STAGING_DIR...');
+
+    const stats = await scanStagingIntoDb();
+    res.json({ success: true, ...stats });
+  } catch (err) {
+    console.error('Error in /staging/rebuild:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2027,55 +3544,6 @@ app.delete('/api/staging/images/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/staging/images/batch
-//   body: { ids: string[] }
-//   Deletes JSON sidecar + image file for each. Mirrors the single-image
-//   DELETE behavior (whatever your existing route does — adapt if you've
-//   changed it to move-to-trash, cascade pool cleanup, etc.).
-app.delete('/api/staging/images/batch', async (req, res) => {
-  try {
-    const { ids } = req.body || {};
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: '`ids` must be a non-empty array' });
-    }
-
-    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
-    const results = [];
-
-    for (const id of ids) {
-      const jsonPath = path.join(STAGING_DIR, `${id}.json`);
-      try {
-        // Remove image file (whichever extension exists)
-        const baseName = jsonPath.replace(/\.json$/, '');
-        for (const ext of imageExts) {
-          const candidate = baseName + ext;
-          try {
-            await fs.unlink(candidate);
-            break;
-          } catch {
-            // try next ext
-          }
-        }
-        // Remove JSON sidecar
-        await fs.unlink(jsonPath);
-        results.push({ id, success: true });
-      } catch (err) {
-        results.push({ id, success: false, error: err.message });
-      }
-    }
-
-    res.json({
-      total: results.length,
-      succeeded: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results,
-    });
-  } catch (err) {
-    console.error('Error in /staging/images/batch DELETE:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // GET /api/staging/image/:id - Get full-size image
 app.get('/api/staging/image/:id', async (req, res) => {
   try {
@@ -2092,28 +3560,59 @@ app.get('/api/staging/image/:id', async (req, res) => {
   }
 });
 
-// GET /api/staging/thumbnail/:id - Get thumbnail
 app.get('/api/staging/thumbnail/:id', async (req, res) => {
   try {
     const size = parseInt(req.query.size) || 200;
     const image = await loadStagingImage(req.params.id);
-    
+
     if (!image || !image.filePath) {
       return res.status(404).json({ error: 'Image not found' });
     }
-    
-    // For videos, return placeholder or first frame
+
+    // Video path — extract frame, with on-disk cache.
     if (image.mediaType === 'video') {
-      // TODO: Extract video thumbnail
-      return res.status(501).json({ error: 'Video thumbnails not yet implemented' });
+      const cachedPath = path.join(THUMBS_DIR, `${req.params.id}.jpg`);
+
+      // Cache hit?
+      let useCache = false;
+      try {
+        await fs.access(cachedPath);
+        useCache = true;
+      } catch {
+        // Cache miss — fall through to extract
+      }
+
+      if (!useCache) {
+        try {
+          await extractVideoThumbnail(image.filePath, req.params.id, size);
+        } catch (err) {
+          console.error(`Thumbnail extraction failed for ${req.params.id}:`, err.message);
+          return res.status(500).json({ error: 'Thumbnail extraction failed' });
+        }
+      }
+
+      // Resize via sharp to the requested size — the cached file may
+      // have been generated at a different size. This keeps response
+      // pixel-accurate to the size param.
+      //
+      // (Optional: skip this if you're OK serving the cached size
+      // verbatim. Faster, but may serve a 200×200 to a 400-pixel
+      // grid request.)
+      const resized = await sharp(cachedPath)
+        .resize(size, size, { fit: 'inside' })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+      res.type('image/jpeg');
+      return res.send(resized);
     }
-    
-    // Generate thumbnail using sharp
+
+    // Image path — unchanged from before
     const thumbnail = await sharp(image.filePath)
       .resize(size, size, { fit: 'inside' })
       .jpeg({ quality: 85 })
       .toBuffer();
-    
+
     res.type('image/jpeg');
     res.send(thumbnail);
   } catch (error) {
@@ -2151,45 +3650,11 @@ app.get('/api/health', (req, res) => {
 });
 
 module.exports = {
-  loadOrInitializeTaxonomy,
-  saveTaxonomy,
-  runTagAnalysis,
   scanStagingDirectory,
   loadStagingImage,
   updateStagingImage,
   deleteStagingImage
 };
-
-// Save updated taxonomy
-app.post('/api/admin/tag-graph', async (req, res) => {
-  try {
-    const { hierarchy, aliases } = req.body;
-
-    // Read current taxonomy
-    const taxonomyData = await fs.readFile('./tag-taxonomy.json', 'utf8');
-    const taxonomy = JSON.parse(taxonomyData);
-
-    // Update hierarchy and aliases
-    taxonomy.hierarchy = hierarchy;
-    taxonomy.aliases = aliases;
-    taxonomy.lastUpdated = new Date().toISOString();
-
-    // Write back
-    await fs.writeFile(
-      './tag-taxonomy.json',
-      JSON.stringify(taxonomy, null, 2),
-      'utf8'
-    );
-
-    // Reload in server
-    await tagProcessor.reloadConfig();
-
-    res.json({ success: true, message: 'Taxonomy updated' });
-  } catch (error) {
-    console.error('Error saving taxonomy:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -2199,38 +3664,32 @@ app.use((err, req, res, next) => {
 
 // Start server
 async function startServer() {
-  await initDatabase();
+  console.log(`┌──────────────────────────────────────────────────────────┐`)
+  console.log(`│░░░░░░░░░░░░░░░░░ Kyabooru server ░░░░░░░░░░░░░░░░░░░░░░░░│`)
+  console.log(`└──────────────────────────────────────────────────────────┘`)
+  // Initialize database
+  initDatabase();
   
-  try {
-    await loadOrInitializeTaxonomy();
-    console.log('  Tag taxonomy initialized');
-  } catch (error) {
-    console.error('  Tag taxonomy initialization failed:', error);
-  }
+  // Build in-memory tag cache from staging directory
+  await scanStagingIntoDb();
 
   app.listen(PORT, 'localhost', () => {
-    console.log(`Tag Saver Server running on http://localhost:${PORT}`);
-    console.log(`Database: ${DB_PATH}`);
-    console.log(`Staging: ${STAGING_DIR}`);
-    console.log('API endpoints:');
-    console.log('  POST /api/images - Save image with tags');
-    console.log('  GET  /api/images/check-duplicate/:hash - Check duplicate');
-    console.log('  GET  /api/tags/search?q=term - Search tags');
-    console.log('  GET  /api/pools/:id/highest-index - Get pool info');
-    console.log('  GET  /api/export - Export all data');
-    console.log('  GET  /api/status - Server status');
-    console.log('  GET  /api/config - Get taxonomy config');
-    console.log('  POST /api/config/analyze - Run tag analysis');
-    console.log('  GET  /api/staging/images - List staging images');
-    console.log('  GET  /api/health - Server health check');
+    console.log(`█ Server running on  http://localhost:${PORT}`);
+    console.log(`█ Database location: ${DB_PATH}`);
+    console.log(`█ Staging location:  ${STAGING_DIR}`);
+    console.log('█ API endpoints ────────────────────────────────────────────');
+    console.log('│ POST /api/images - Save image with tags');
+    console.log('│ GET  /api/images/check-duplicate/:hash - Check duplicate');
+    console.log('│ GET  /api/tags/search?q=term - Search tags');
+    console.log('│ GET  /api/pools/:id/highest-index - Get pool info');
+    console.log('│ GET  /api/export - Export all data');
+    console.log('│ GET  /api/status - Server status');
+    console.log('│ GET  /api/config - Get taxonomy config');
+    console.log('│ POST /api/config/analyze - Run tag analysis');
+    console.log('│ GET  /api/staging/images - List staging images');
+    console.log('│ GET  /api/health - Server health check');
+    console.log('└───────────────────────────────────────────────────────────');
   });
-
-  try {
-    await tagProcessor.loadConfig();
-    console.log('  Tag processor initialized');
-  } catch (error) {
-    console.error('  Tag processor failed to load, tags will not be normalized');
-  }
 }
 
 startServer().catch(console.error);

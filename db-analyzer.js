@@ -1,5 +1,5 @@
 // db-analyzer.js - Analyze existing tags and suggest taxonomy improvements
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('better-sqlite3')
 const path = require('path');
 
 /**
