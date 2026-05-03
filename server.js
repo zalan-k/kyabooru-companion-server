@@ -1,4 +1,5 @@
 // server.js - Tag Saver Local Server
+const multer = require('multer');
 const express = require('express');
 const Database = require('better-sqlite3');
 const path = require('path');
@@ -6,12 +7,15 @@ const cors = require('cors');
 const sharp = require('sharp');
 const glob = require('glob');
 const fs = require('fs').promises;
+const { constants: fsConstants } = require('fs');
 const { spawn } = require('child_process');
 
-const TagProcessor = require('./tag-processor');
-const TagAnalyzer = require('./tag-analyzer');
-const DatabaseAnalyzer = require('./db-analyzer');
 const { DanbooruUploader } = require('./danbooru-uploader');
+
+const saveUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1000 * 1024 * 1024 },
+});
 
 const booruUploader = new DanbooruUploader({
   baseUrl:  process.env.DANBOORU_URL  || 'http://192.168.0.205:3000',
@@ -29,14 +33,39 @@ const BOORU_PUBLIC_URL = (
 
 const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
 
-// Constants
-const STAGING_DIR = 'C:\\Users\\zalka\\Downloads\\TagSaver';
-const TAXONOMY_FILE = path.join(__dirname, 'tag-taxonomy.json');
-const TRASH_DIR = path.join(STAGING_DIR, '.trash');
-const THUMBS_DIR = path.join(STAGING_DIR, '.thumbs');
+const {
+  serverConfig,
+  loadServerConfig,
+  setStagingDir,
+  snapshot: serverConfigSnapshot,
+} = require('./server-config');
 
 const app = express();
 const PORT = 3737; // Fixed port for the extension to connect to
+
+// ============================================================
+// SSE — staging events
+// ============================================================
+// Subscribers list. Each entry is the Express res object kept open
+// with text/event-stream content-type. Writes are fire-and-forget.
+
+const sseSubscribers = new Set();
+/**
+ * Broadcast a staging event to all subscribers. `data` is serialized
+ * as JSON. Failures (closed sockets) are pruned silently.
+ */
+function publishStagingEvent(event, data) {
+  if (sseSubscribers.size === 0) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseSubscribers) {
+    try {
+      res.write(payload);
+    } catch {
+      sseSubscribers.delete(res);
+    }
+  }
+}
+
 
 class TagCache {
   constructor() {
@@ -116,6 +145,8 @@ function initDatabase() {
 
     PRAGMA optimize;
   `);
+
+  db.pragma('wal_checkpoint(TRUNCATE)');
 
   // Schema. exec() runs all statements in one go — no need for
   // serialize() because better-sqlite3 is sync by design.
@@ -436,7 +467,10 @@ function upsertStagingRow(probe, json, tags, timestamp) {
       pool_index: json.poolIndex ?? null,
       booru_upload_id: json.booruUploadId || null,
       booru_media_asset_id: json.booruMediaAssetId || null,
-      booru_post_id: json.booruPostId || null,
+      booru_post_id:
+        json.booruPostId === undefined ? null :   // pending
+        json.booruPostId === null      ? 0    :   // duplicate-skip sentinel
+        json.booruPostId,                          // -1 (fail) or positive (success), preserved as-is
       timestamp: timestamp ?? probe.sidecarMtime,
       sidecar_mtime: probe.sidecarMtime,
       tag_count: tags.length,
@@ -528,16 +562,31 @@ async function pruneOrphans(seenIds) {
 }
 
 /**
- * Walk STAGING_DIR, sync the index. Called at boot and on demand.
+ * Walk staging, sync the index. Called at boot and on demand.
  */
-async function scanStagingIntoDb() {
+/**
+ * Walk serverConfig.stagingDir, sync the index. Called at boot and on
+ * demand (boot scan, /api/staging/rebuild, PATCH /api/server-config).
+ *
+ * options.rescanId — when set, periodically publish 'rescan-progress'
+ * SSE events so the UI can show a progress bar. Boot calls this with
+ * no rescanId because no clients are connected yet.
+ */
+async function scanStagingIntoDb(options = {}) {
+  const { rescanId = null } = options;
+
   const t0 = Date.now();
-  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const files = glob.sync(`${serverConfig.stagingDir}/**/*.json`).filter(f => !f.includes('.trash'));
 
   console.log(`  [index-scan] found ${files.length} sidecars on disk`);
 
   let inserted = 0, updated = 0, skipped = 0, errored = 0;
   const seen = new Set();
+
+  // Publish progress every PROGRESS_STEP files. For 15k files this
+  // gives ~30 events — enough resolution for a progress bar without
+  // spamming SSE consumers.
+  const PROGRESS_STEP = 500;
 
   for (const jsonPath of files) {
     try {
@@ -564,10 +613,18 @@ async function scanStagingIntoDb() {
       console.warn(`  [index-scan] error on ${jsonPath}: ${err.message}`);
     }
 
-    // Progress log every 1000 files
-    const total = inserted + updated + skipped + errored;
-    if (total % 1000 === 0) {
-      console.log(`  [index-scan] progress: ${total}/${files.length}`);
+    const processed = inserted + updated + skipped + errored;
+
+    if (processed % 1000 === 0) {
+      console.log(`  [index-scan] progress: ${processed}/${files.length}`);
+    }
+
+    if (rescanId && processed % PROGRESS_STEP === 0) {
+      publishStagingEvent('rescan-progress', {
+        rescanId,
+        processed,
+        total: files.length,
+      });
     }
   }
 
@@ -600,7 +657,7 @@ async function scanStagingIntoDb() {
  *     fresh from disk to capture exactly what's there.
  */
 async function syncSidecarToDb(id) {
-  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
 
   let probe;
   try {
@@ -671,7 +728,10 @@ async function syncSidecarToDb(id) {
       pool_index: json.poolIndex ?? null,
       booru_upload_id: json.booruUploadId || null,
       booru_media_asset_id: json.booruMediaAssetId || null,
-      booru_post_id: json.booruPostId || null,
+      booru_post_id:
+        json.booruPostId === undefined ? null :   // pending
+        json.booruPostId === null      ? 0    :   // duplicate-skip sentinel
+        json.booruPostId,                          // -1 (fail) or positive (success), preserved as-is
       timestamp: timestamp ?? probe.sidecarMtime,
       sidecar_mtime: probe.sidecarMtime,
       tag_count: tags.length,
@@ -1047,7 +1107,6 @@ app.post('/api/images', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: url, tags' });
     }
     
-    // Enhanced duplicate check with similarity
     let duplicateInfo = null;
     if (imageHash) {
       const duplicateResult = await checkForDuplicateWithSimilarity(imageHash, similarityThreshold);
@@ -1059,7 +1118,25 @@ app.post('/api/images', async (req, res) => {
           exactMatch: duplicateResult.exactMatch,
           originalRecord: duplicateResult.originalRecord
         };
-        // ✅ Continue with save instead of returning error
+      }
+    }
+
+    // Keep pool_log in sync so /api/pools/:id/highest-index reflects this
+    // save immediately rather than waiting for the next boot scan.
+    if (poolId) {
+      const idx = poolIndex ?? 0;
+      const now = Date.now();
+      try {
+        db.prepare(`
+          INSERT INTO pool_log
+            (pool_id, source_url, highest_index, first_seen_ts, last_seen_ts)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(pool_id) DO UPDATE SET
+            highest_index = MAX(highest_index, excluded.highest_index),
+            last_seen_ts  = excluded.last_seen_ts
+        `).run(poolId, url || null, idx, now, now);
+      } catch (err) {
+        console.warn(`/api/images: pool_log upsert failed for ${poolId}: ${err.message}`);
       }
     }
 
@@ -1068,7 +1145,7 @@ app.post('/api/images', async (req, res) => {
       success: true, 
       imageId: tempId, 
       processing: true,
-      duplicateInfo: duplicateInfo // ✅ Include duplicate info in response
+      duplicateInfo: duplicateInfo
     });
     
   } catch (error) {
@@ -1452,6 +1529,83 @@ function runSuggesterAnalysis() {
     blacklistCandidates: blacklistInserts.length,
     elapsed,
   };
+}
+
+// ============================================================
+// Save endpoint helpers
+// ============================================================
+/**
+ * Canonicalize the categorized-tags object that the extension sends.
+ * Input  shape: { general: ['raw tag', ...], character: [...], ... }
+ * Output shape: same shape but with normalized + alias-resolved +
+ *               hierarchy-expanded + blacklist-filtered names. Empty
+ *               categories are dropped.
+ *
+ * Internally flattens to "category:name" strings, calls canonicalize(),
+ * then re-buckets by category.
+ */
+function canonicalizeCategorized(tagsByCategory) {
+  if (!tagsByCategory || typeof tagsByCategory !== 'object') return {};
+
+  const flat = [];
+  for (const [category, list] of Object.entries(tagsByCategory)) {
+    if (!Array.isArray(list)) continue;
+    for (const name of list) {
+      if (typeof name !== 'string' || !name) continue;
+      flat.push(category === 'general' ? name : `${category}:${name}`);
+    }
+  }
+
+  // canonicalize() returns sorted unique "category:name" strings
+  const cleaned = canonicalize(flat);
+
+  const out = {};
+  for (const tag of cleaned) {
+    const idx = tag.indexOf(':');
+    const cat = idx === -1 ? 'general' : tag.slice(0, idx);
+    const name = idx === -1 ? tag : tag.slice(idx + 1);
+    if (!out[cat]) out[cat] = [];
+    out[cat].push(name);
+  }
+  return out;
+}
+
+/**
+ * Build the on-disk id from a source URL the same way background.js
+ * used to. Domain (no www) + millisecond timestamp.
+ *   "https://www.pixiv.net/en/artworks/123" → "pixiv.net_1730000000000"
+ * Falls back to "unknown_<ts>" if the URL doesn't parse.
+ */
+function buildStagingId(sourceUrl) {
+  let domain = 'unknown';
+  try {
+    const u = new URL(sourceUrl);
+    if (u.hostname) domain = u.hostname.replace(/^www\./, '');
+  } catch { /* keep 'unknown' */ }
+  return `${domain}_${Date.now()}`;
+}
+
+/**
+ * Pick the file extension to write the image bytes under.
+ * Prefers explicit hint from the client; falls back to MIME map; last
+ * resort .bin.
+ */
+function pickExtension({ filenameHint, mimeType }) {
+  if (filenameHint) {
+    const m = /\.([a-z0-9]+)$/i.exec(filenameHint);
+    if (m) return '.' + m[1].toLowerCase();
+  }
+  switch ((mimeType || '').toLowerCase()) {
+    case 'image/jpeg':           return '.jpg';
+    case 'image/png':            return '.png';
+    case 'image/gif':            return '.gif';
+    case 'image/webp':           return '.webp';
+    case 'video/mp4':            return '.mp4';
+    case 'video/webm':           return '.webm';
+    case 'image/x-ms-bmp':
+    case 'image/bmp':            return '.bmp';
+    default:                     return '.bin';
+  }
 }
 
 // ============================================================
@@ -1839,8 +1993,8 @@ async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', upl
 
   // Upload-state filter — applied to both COUNT and SELECT so hasMore stays correct.
   let whereClause = '';
-  if      (uploadFilter === 'pending')  whereClause = 'WHERE booru_post_id IS NULL';
-  else if (uploadFilter === 'uploaded') whereClause = 'WHERE booru_post_id IS NOT NULL';
+  if      (uploadFilter === 'pending')  whereClause = 'WHERE booru_post_id IS NULL OR booru_post_id = -1';
+  else if (uploadFilter === 'uploaded') whereClause = 'WHERE booru_post_id >= 0';
 
   const total = db.prepare(
     `SELECT COUNT(*) AS c FROM staging_images ${whereClause}`
@@ -1885,25 +2039,33 @@ async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', upl
   }
 
   // 4. Map to the same response shape scanStagingDirectory used to return.
-  const images = rows.map(r => ({
-    id: r.id,
-    filename: r.filename || path.basename(r.image_path || r.json_path),
-    filePath: r.image_path,
-    jsonPath: r.json_path,
-    tags: tagsByImage.get(r.id) || [],
-    tagCount: r.tag_count,
-    sourceUrl: r.source_url,
-    imageUrl: r.image_path,            // legacy field — points at local file
-    poolId: r.pool_id,
-    poolIndex: r.pool_index,
-    phash: r.image_hash,
-    mediaType: r.media_type || 'image',
-    timestamp: r.timestamp,
-    booruPostId: r.booru_post_id,
-    booruPublicUrl: r.booru_post_id
-      ? `${BOORU_PUBLIC_URL}/posts/${r.booru_post_id}`
-      : null,
-  }));
+  const images = rows.map(r => {
+    const pid = r.booru_post_id;
+    const booruPostState =
+      pid === null ? 'pending' :
+      pid === -1   ? 'errored' :
+      pid === 0    ? 'duplicate' :
+      'posted';
+    return {
+      id: r.id,
+      filename: r.filename || path.basename(r.image_path || r.json_path),
+      filePath: r.image_path,
+      jsonPath: r.json_path,
+      tags: tagsByImage.get(r.id) || [],
+      tagCount: r.tag_count,
+      sourceUrl: r.source_url,
+      imageUrl: r.image_path,
+      poolId: r.pool_id,
+      poolIndex: r.pool_index,
+      phash: r.image_hash,
+      mediaType: r.media_type || 'image',
+      timestamp: r.timestamp,
+      booruUploadId: r.booru_upload_id,
+      booruPostId: pid > 0 ? pid : null,
+      booruPostState,
+      booruPublicUrl: pid > 0 ? `${BOORU_PUBLIC_URL}/posts/${pid}` : null,
+    };
+  });
 
   return {
     images,
@@ -1914,15 +2076,15 @@ async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', upl
 
 /**
  * Extract a frame from a video and save as JPEG.
- * Output path:   STAGING_DIR/.thumbs/${id}.jpg
+ * Output path:   stagingDir/.thumbs/${id}.jpg
  * Source frame:  1 second in (or last frame if shorter)
  * Sizing:        fits inside size×size, preserves aspect ratio
  *
  * Returns the path to the cached thumbnail. Throws on ffmpeg failure.
  */
 async function extractVideoThumbnail(videoPath, id, size = 200) {
-  await fs.mkdir(THUMBS_DIR, { recursive: true });
-  const outPath = path.join(THUMBS_DIR, `${id}.jpg`);
+  await fs.mkdir(serverConfig.thumbsDir, { recursive: true });
+  const outPath = path.join(serverConfig.thumbsDir, `${id}.jpg`);
 
   return new Promise((resolve, reject) => {
     // -ss 1               Seek to 1 second
@@ -2019,7 +2181,7 @@ async function loadStagingImage(id) {
  * Update staging image metadata
  */
 async function updateStagingImage(id, updates) {
-  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
   
   try {
     // Load existing data
@@ -2088,9 +2250,9 @@ async function deleteStagingImage(id) {
  * Returns true if at least one file was moved.
  */
 async function moveImageToTrash(id) {
-  await fs.mkdir(TRASH_DIR, { recursive: true });
+  await fs.mkdir(serverConfig.trashDir, { recursive: true });
 
-  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
   const baseName = jsonPath.replace(/\.json$/, '');
   const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
 
@@ -2098,7 +2260,7 @@ async function moveImageToTrash(id) {
 
   // JSON sidecar
   try {
-    await fs.rename(jsonPath, path.join(TRASH_DIR, `${id}.json`));
+    await fs.rename(jsonPath, path.join(serverConfig.trashDir, `${id}.json`));
     movedAny = true;
   } catch (err) {
     if (err.code !== 'ENOENT') {
@@ -2111,7 +2273,7 @@ async function moveImageToTrash(id) {
     const src = baseName + ext;
     try {
       await fs.access(src);
-      await fs.rename(src, path.join(TRASH_DIR, `${id}${ext}`));
+      await fs.rename(src, path.join(serverConfig.trashDir, `${id}${ext}`));
       movedAny = true;
       break;
     } catch (err) {
@@ -2121,7 +2283,7 @@ async function moveImageToTrash(id) {
 
   // Also nuke the thumbnail cache for this id
   try {
-    await fs.unlink(path.join(THUMBS_DIR, `${id}.jpg`));
+    await fs.unlink(path.join(serverConfig.thumbsDir, `${id}.jpg`));
   } catch {}  // not cached, fine
 
   return movedAny;
@@ -2136,7 +2298,7 @@ async function moveImageToTrash(id) {
  * extension sits next to it. The route turns these into per-id failures.
  */
 async function loadBooruJob(id) {
-  const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
   const metadata = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
  
   const baseName = jsonPath.replace(/\.json$/, '');
@@ -2160,12 +2322,12 @@ async function resolveBooruTargetIds({ ids, all, force }) {
   if (Array.isArray(ids) && ids.length > 0) return ids;
   if (!all) return [];
  
-  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const files = glob.sync(`${serverConfig.stagingDir}/**/*.json`).filter(f => !f.includes('.trash'));
   const out = [];
   for (const file of files) {
     try {
       const json = JSON.parse(await fs.readFile(file, 'utf8'));
-      if (force || !json.booruPostId) {
+      if (force || json.booruPostId === undefined || json.booruPostId === -1) {
         out.push(path.basename(file, '.json'));
       }
     } catch {
@@ -2183,7 +2345,7 @@ async function resolveBooruTargetIds({ ids, all, force }) {
 async function findExistingPoolParents(poolIds) {
   if (poolIds.size === 0) return new Map();
  
-  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+  const files = glob.sync(`${serverConfig.stagingDir}/**/*.json`).filter(f => !f.includes('.trash'));
   const candidates = new Map(); // poolId -> { postId, poolIndex }
  
   for (const file of files) {
@@ -2326,6 +2488,7 @@ async function runBooruUploads({ ids, all, force }, onProgress) {
 const POST_WORKER = {
   running: false,
   scheduled: false,
+  pendingScope: null, 
   AI_POLL_TIMEOUT_MS: 5000,        // give up on AI tags after this
   AI_POLL_INTERVAL_MS: 500,
   AI_THRESHOLDS: {
@@ -2333,27 +2496,29 @@ const POST_WORKER = {
     meta: 0.25,
   },
   POLITENESS_GAP_MS: 500,
-  MAINTENANCE_INTERVAL_MS: 5 * 60 * 1000,
-  DUPLICATE_LOG: path.join(STAGING_DIR, 'duplicate-failures.log'),
+  MAINTENANCE_INTERVAL_MS: 30 * 60 * 1000,
+  get DUPLICATE_LOG() {
+    return path.join(serverConfig.stagingDir, 'duplicate-failures.log');
+  },
 };
 
 /**
  * Find sidecars that have been uploaded but not yet posted.
  * Sorted so pool members are grouped and ordered by poolIndex.
  */
-async function findPendingPosts() {
-  const files = glob.sync(`${STAGING_DIR}/**/*.json`).filter(f => !f.includes('.trash'));
+async function findPendingPosts(scopeIds = null) {
+  const files = glob.sync(`${serverConfig.stagingDir}/**/*.json`).filter(f => !f.includes('.trash'));
+  const scopeSet = scopeIds ? new Set(scopeIds) : null;
   const pending = [];
 
   for (const file of files) {
     try {
+      const id = path.basename(file, '.json');
+      if (scopeSet && !scopeSet.has(id)) continue;
       const json = JSON.parse(await fs.readFile(file, 'utf8'));
-      if (json.booruUploadId && json.booruMediaAssetId && !json.booruPostId) {
-        pending.push({
-          jsonPath: file,
-          id: path.basename(file, '.json'),
-          metadata: json,
-        });
+      if (json.booruUploadId && json.booruMediaAssetId &&
+          (json.booruPostId === undefined || json.booruPostId === -1)) {
+        pending.push({ jsonPath: file, id, metadata: json });
       }
     } catch {
       // skip unreadable
@@ -2461,18 +2626,31 @@ function countMetadataTags(metadata) {
 }
 
 /** One worker tick — drains the pending queue once. */
-async function postWorkerTick() {
+async function postWorkerTick(scopeIds = null) {
   if (POST_WORKER.running) {
     POST_WORKER.scheduled = true;
+    // Merge scopes for the next run. null is "broadest" — once any
+    // caller passes null, the next tick runs unscoped.
+    if (scopeIds === null) {
+      POST_WORKER.pendingScope = null;
+    } else if (POST_WORKER.pendingScope !== null) {
+      if (!(POST_WORKER.pendingScope instanceof Set)) {
+        POST_WORKER.pendingScope = new Set();
+      }
+      for (const id of scopeIds) POST_WORKER.pendingScope.add(id);
+    }
     return;
   }
   POST_WORKER.running = true;
 
   try {
-    const pending = await findPendingPosts();
+    const pending = await findPendingPosts(scopeIds);
     if (pending.length === 0) return;
 
-    console.log(`[post-worker] processing ${pending.length} pending posts`);
+    console.log(
+      `[booru-postman] processing ${pending.length} pending posts` +
+      (scopeIds ? ` (scoped: ${scopeIds.length})` : ' (all)')
+    );
 
     const poolParents = new Map();
 
@@ -2482,11 +2660,11 @@ async function postWorkerTick() {
         if (existingTagCount < 10) {
           const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
           if (aiTags.length === 0) {
-            console.warn(`[post-worker] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
+            console.warn(`[booru-postman] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
           }
           mergeAiTags(metadata, aiTags);
         } else {
-          console.log(`[post-worker] skipping AI tag wait for ${id} (${existingTagCount} tags already present)`);
+          console.log(`[booru-postman] skipping AI tag wait for ${id} (${existingTagCount} tags already present)`);
         }
 
         const poolId = metadata.poolId;
@@ -2506,49 +2684,55 @@ async function postWorkerTick() {
             metadata.booruUploadId, metadata, parentId
           );
         } catch (err) {
-          const isDup = err.phase === 'post'
-            && err.status === 422
-            && extractDuplicatePostId(err.body) !== null;
-          if (!isDup) throw err;
+          // 422 with an extractable existing post id means Danbooru already has
+          // this image. Adopt the existing post id rather than forcing a second
+          // copy via bypass_dnp.
+          const existingId = err.phase === 'post' && err.status === 422
+            ? extractDuplicatePostId(err.body)
+            : null;
 
-          try {
-            postId = await booruUploader.createPostFromAsset(
-              metadata.booruUploadId, metadata, parentId, { duplicateOverride: true }
-            );
-          } catch (overrideErr) {
-            await logDuplicateFailure(
-              path.basename(jsonPath, '.json'),
-              overrideErr.body || err.body
-            );
-            console.error(`[post-worker] duplicate override failed for ${id}; logged and skipping`);
-            continue;
+          if (existingId !== null) {
+            postId = existingId;
+            console.log(`[booru-postman] adopting existing post #${existingId} for ${id} (already on booru)`);
+          } else {
+            throw err;
           }
         }
 
+        if (postId === null) { console.log(`[booru-postman] duplicate-skipped for ${id} (200 OK)`); }
         metadata.booruPostId = postId;
         await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
         await syncSidecarToDb(id);
         if (poolId && !poolParents.has(poolId)) poolParents.set(poolId, postId);
       } catch (err) {
-        console.error(`[post-worker] failed to post ${id}:`, err.message);
+        console.error(`[booru-postman] failed to post ${id}:`, err.message);
+        try {
+          metadata.booruPostId = -1;
+          await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+          await syncSidecarToDb(id);
+        } catch (writeErr) {
+          console.error(`[booru-postman] failed to mark ${id} as errored:`, writeErr.message);
+        }
       }
-
       await new Promise(r => setTimeout(r, POST_WORKER.POLITENESS_GAP_MS));
     }
 
-    console.log('[post-worker] tick complete');
+    console.log('[booru-postman] work tick complete');
   } finally {
     POST_WORKER.running = false;
     if (POST_WORKER.scheduled) {
       POST_WORKER.scheduled = false;
-      setImmediate(postWorkerTick);
+      const nextScope = POST_WORKER.pendingScope;
+      POST_WORKER.pendingScope = null;
+      const scopeArg = nextScope instanceof Set ? [...nextScope] : null;
+      setImmediate(() => postWorkerTick(scopeArg));
     }
   }
 }
 
 /** Public entry — coalesces concurrent calls. */
-function kickPostWorker() {
-  postWorkerTick().catch(err => console.error('[post-worker] tick threw:', err));
+function kickPostWorker(scopeIds = null) {
+  postWorkerTick(scopeIds).catch(err => console.error('[booru-postman] tick threw:', err));
 }
 
 // Maintenance: catch any sidecars uploaded outside the SSE flow.
@@ -2790,14 +2974,149 @@ app.post('/api/staging/upload-to-booru', async (req, res) => {
   try {
     const { ids, all = false, force = false } = req.body;
     const summary = await runBooruUploads({ ids, all, force });
-    kickPostWorker();
+    kickPostWorker(all ? null : (ids || []));
     res.json(summary);
   } catch (err) {
     console.error('Error in upload-to-booru:', err);
     res.status(500).json({ error: err.message });
   }
 });
- 
+
+/**
+ * POST /api/staging/save
+ *
+ * Multipart upload from the extension. Replaces the old
+ * background.js → browser.downloads.download flow. Server takes
+ * raw bytes + raw metadata, canonicalizes, writes both the image and
+ * sidecar atomically, syncs the DB, and pushes an SSE event to the
+ * staging manager.
+ *
+ * Form fields:
+ *   image            (file, required) - raw bytes
+ *   metadata         (string,  required) - JSON of { sourceUrl, tags,
+ *                                          imageUrl, mediaType,
+ *                                          timestamp?, imageHash?,
+ *                                          poolId?, poolIndex? }
+ *   filenameHint     (string, optional) - hint for extension picking,
+ *                                          e.g. "foo_p0.png"
+ *
+ * Response:
+ *   { success: true, id, filename, image: <full image object> }
+ *
+ * The full image object in the response matches what
+ * GET /api/staging/images/:id returns — saves the extension a round
+ * trip if it cares about the resulting record (it doesn't today, but
+ * keeps options open).
+ */
+app.post('/api/staging/save', saveUpload.single('image'), async (req, res) => {
+  const startTime = process.hrtime.bigint();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Missing image field' });
+    }
+    if (!req.body || !req.body.metadata) {
+      return res.status(400).json({ error: 'Missing metadata field' });
+    }
+
+    let raw;
+    try {
+      raw = JSON.parse(req.body.metadata);
+    } catch (err) {
+      return res.status(400).json({ error: `Bad metadata JSON: ${err.message}` });
+    }
+
+    if (!raw.sourceUrl) {
+      return res.status(400).json({ error: 'metadata.sourceUrl is required' });
+    }
+
+    // ---- Canonicalize tags ----
+    // raw.tags is the categorized form { general: [...], character: [...] }
+    // Canonicalize applies normalize + alias + hierarchy + blacklist
+    // and re-buckets by category.
+    const cleanTags = canonicalizeCategorized(raw.tags || {});
+
+    // ---- Decide filenames ----
+    const id = buildStagingId(raw.sourceUrl);
+    const ext = pickExtension({
+      filenameHint: req.body.filenameHint,
+      mimeType: req.file.mimetype,
+    });
+    const imageFilename = `${id}${ext}`;
+    const imagePath = path.join(serverConfig.stagingDir, imageFilename);
+    const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+
+    // ---- Compose final sidecar ----
+    const sidecar = {
+      sourceUrl: raw.sourceUrl,
+      tags: cleanTags,
+      imageUrl: raw.imageUrl || null,
+      mediaType: raw.mediaType || 'image',
+      timestamp: raw.timestamp || new Date().toISOString(),
+      imageHash: raw.imageHash || null,
+      ...(raw.poolId && {
+        poolId: raw.poolId,
+        poolIndex: parseInt(raw.poolIndex, 10) || 0,
+      }),
+    };
+
+    // ---- Write image first, then sidecar ----
+    // Order matters: the post-worker scans for *.json files and looks
+    // for a sibling image; if the JSON existed without the image we'd
+    // hit a race. So bytes first.
+    await fs.writeFile(imagePath, req.file.buffer);
+    await fs.writeFile(jsonPath, JSON.stringify(sidecar, null, 2));
+
+    // ---- Sync to DB ----
+    // syncSidecarToDb is the same function the boot scan and rescan
+    // endpoints use. Handles staging_images, staging_tags,
+    // staging_image_tags, tag_log, tag_log_seen, image_log. Idempotent.
+    const synced = await syncSidecarToDb(id);
+    if (!synced) {
+      console.warn(`[save] syncSidecarToDb returned false for ${id} — disk write succeeded but DB sync did not`);
+    }
+
+    // ---- pool_log upsert (same as the old /api/images stub did) ----
+    if (sidecar.poolId) {
+      const now = Date.now();
+      try {
+        db.prepare(`
+          INSERT INTO pool_log
+            (pool_id, source_url, highest_index, first_seen_ts, last_seen_ts)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(pool_id) DO UPDATE SET
+            highest_index = MAX(highest_index, excluded.highest_index),
+            last_seen_ts  = excluded.last_seen_ts
+        `).run(sidecar.poolId, sidecar.sourceUrl, sidecar.poolIndex, now, now);
+      } catch (err) {
+        console.warn(`[save] pool_log upsert failed for ${sidecar.poolId}: ${err.message}`);
+      }
+    }
+
+    // ---- Build the response payload (full image object) ----
+    let image = null;
+    try {
+      image = await loadStagingImage(id);
+    } catch (err) {
+      console.warn(`[save] loadStagingImage failed for ${id}: ${err.message}`);
+    }
+
+    // ---- Publish SSE ----
+    if (image) {
+      publishStagingEvent('image-saved', image);
+    }
+
+    const ms = Number((process.hrtime.bigint() - startTime) / 1_000_000n);
+    console.log(`[save] ${id} (${ms}ms, ${cleanTags ? Object.values(cleanTags).flat().length : 0} tags)`);
+
+    res.json({ success: true, id, filename: imageFilename, image });
+
+  } catch (err) {
+    console.error('[save] error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Streaming SSE per-item progress.
 app.post('/api/staging/upload-to-booru/stream', async (req, res) => {
   const validationError = validateBooruUploadBody(req.body);
@@ -2831,7 +3150,7 @@ app.post('/api/staging/upload-to-booru/stream', async (req, res) => {
     await runBooruUploads({ ids, all, force }, (progress) => {
       send(progress.phase, progress);
     });
-    kickPostWorker();
+    kickPostWorker(all ? null : (ids || []));
   } catch (err) {
     console.error('Error in upload-to-booru/stream:', err);
     send('error', { error: err.message });
@@ -3200,6 +3519,44 @@ app.get('/api/staging/images', async (req, res) => {
   }
 });
 
+// GET /api/staging/events — Server-Sent Events stream of staging changes
+//
+// Events emitted:
+//   event: image-saved   data: <full image object, same shape as
+//                              GET /api/staging/images/:id returns>
+//   event: heartbeat     data: { ts: <epoch_ms> }   (every 30s)
+//
+// Client should reconnect with EventSource if the stream drops.
+app.get('/api/staging/events', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders?.();
+
+  // Initial hello so EventSource fires onopen immediately
+  res.write(`event: ready\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+
+  sseSubscribers.add(res);
+
+  // Heartbeat to keep proxies / Tailscale / browsers from idle-closing
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`event: heartbeat\ndata: ${JSON.stringify({ ts: Date.now() })}\n\n`);
+    } catch {
+      clearInterval(heartbeat);
+      sseSubscribers.delete(res);
+    }
+  }, 30_000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseSubscribers.delete(res);
+  });
+});
+
 // GET /api/staging/images/:id - Get single staging image metadata
 app.get('/api/staging/images/:id', async (req, res) => {
   try {
@@ -3232,7 +3589,7 @@ app.patch('/api/staging/images/batch', async (req, res) => {
 
     const results = [];
     for (const id of ids) {
-      const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+      const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
       try {
         const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
         const existing = new Set();
@@ -3332,7 +3689,7 @@ app.put('/api/staging/images/:id', async (req, res) => {
 app.post('/api/staging/images/:id/rescan', async (req, res) => {
   try {
     const id = req.params.id;
-    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+    const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
 
     // Sanity check: file actually exists?
     try {
@@ -3361,7 +3718,7 @@ app.post('/api/staging/images/:id/rescan', async (req, res) => {
 app.post('/api/staging/images/:id/refresh', async (req, res) => {
   try {
     const id = req.params.id;
-    const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+    const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
 
     let json;
     try {
@@ -3418,6 +3775,124 @@ app.post('/api/staging/images/:id/refresh', async (req, res) => {
   }
 });
 
+// POST /api/staging/images/refresh-batch
+//   Re-canonicalize tags for each id in the batch. Same logic as
+//   /:id/refresh, looped per-id, with aggregate response.
+app.post('/api/staging/images/refresh-batch', async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '`ids` must be a non-empty array' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+      try {
+        let json;
+        try {
+          json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+        } catch (err) {
+          if (err.code === 'ENOENT') {
+            results.push({ id, success: false, error: 'Sidecar not found' });
+            continue;
+          }
+          throw err;
+        }
+
+        const currentFlat = [];
+        if (Array.isArray(json.tags)) {
+          currentFlat.push(...json.tags);
+        } else if (json.tags && typeof json.tags === 'object') {
+          for (const [cat, list] of Object.entries(json.tags)) {
+            if (!Array.isArray(list)) continue;
+            for (const t of list) {
+              currentFlat.push(cat === 'general' ? t : `${cat}:${t}`);
+            }
+          }
+        }
+
+        const canonicalTags = canonicalize(currentFlat);
+        const categorized = { artist: [], character: [], copyright: [], general: [], meta: [] };
+        for (const tag of canonicalTags) {
+          const { category, name } = parseTagName(tag);
+          if (categorized[category]) categorized[category].push(name);
+          else categorized.general.push(tag);
+        }
+
+        const beforeJson = JSON.stringify(json.tags);
+        json.tags = categorized;
+        const afterJson = JSON.stringify(json.tags);
+        const changed = beforeJson !== afterJson;
+
+        if (changed) {
+          await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+          await syncSidecarToDb(id);
+        }
+
+        results.push({ id, success: true, changed, tagCount: canonicalTags.length });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      changed: results.filter(r => r.success && r.changed).length,
+      results,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/refresh-batch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/staging/images/rescan-batch
+//   Re-read each sidecar from disk and update its DB row.
+app.post('/api/staging/images/rescan-batch', async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '`ids` must be a non-empty array' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+      try {
+        try {
+          await fs.access(jsonPath);
+        } catch {
+          results.push({ id, success: false, error: 'Sidecar not found' });
+          continue;
+        }
+
+        const ok = await syncSidecarToDb(id);
+        if (!ok) {
+          results.push({ id, success: false, error: 'Sync failed' });
+          continue;
+        }
+        const image = await loadStagingImage(id);
+        results.push({ id, success: true, tagCount: (image?.tags?.length) ?? 0 });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
+  } catch (err) {
+    console.error('Error in /staging/images/rescan-batch:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/staging/refresh-all
 //   Re-canonicalize every staging image. Long-running on large
 //   datasets. Returns aggregate stats once complete.
@@ -3435,7 +3910,7 @@ app.post('/api/staging/refresh-all', async (req, res) => {
 
     for (const id of ids) {
       try {
-        const jsonPath = path.join(STAGING_DIR, `${id}.json`);
+        const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
         const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
 
         const currentFlat = [];
@@ -3518,7 +3993,7 @@ app.post('/api/staging/rebuild', async (req, res) => {
       DELETE FROM staging_tags;
     `);
 
-    console.log('[rebuild] index wiped, rescanning STAGING_DIR...');
+    console.log(`[rebuild] index wiped, rescanning ${serverConfig.stagingDir} ...`);
 
     const stats = await scanStagingIntoDb();
     res.json({ success: true, ...stats });
@@ -3571,7 +4046,7 @@ app.get('/api/staging/thumbnail/:id', async (req, res) => {
 
     // Video path — extract frame, with on-disk cache.
     if (image.mediaType === 'video') {
-      const cachedPath = path.join(THUMBS_DIR, `${req.params.id}.jpg`);
+      const cachedPath = path.join(serverConfig.thumbsDir, `${req.params.id}.jpg`);
 
       // Cache hit?
       let useCache = false;
@@ -3640,6 +4115,104 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// ============================================================
+// Server config — runtime-mutable settings
+// ============================================================
+
+// GET /api/server-config — returns the current config snapshot.
+// Used by the extension's Settings page to populate fields on load.
+app.get('/api/server-config', (req, res) => {
+  res.json(serverConfigSnapshot());
+});
+
+// PATCH /api/server-config — change one or more config values.
+//
+// Currently only supports stagingDir. Validation order:
+//   1. body.stagingDir is a non-empty string         -> 400 if not
+//   2. resolved path differs from current value      -> 200 noop if not
+//   3. fs.access(R_OK | W_OK) succeeds               -> 400 if not
+//   4. setStagingDir() persists + mutates in-memory  -> 400 if rejected
+//
+// On success, returns 202 with a rescanId, then asynchronously runs
+// scanStagingIntoDb() against the new dir, publishing 'rescan-progress'
+// and finally 'rescan-done' (or 'rescan-error') SSE events so the UI
+// can show a progress bar without blocking the HTTP response.
+app.patch('/api/server-config', async (req, res) => {
+  const { stagingDir } = req.body || {};
+
+  if (typeof stagingDir !== 'string' || !stagingDir.trim()) {
+    return res.status(400).json({
+      error: 'stagingDir must be a non-empty string',
+      code: 'EINVAL',
+    });
+  }
+
+  const resolved = path.resolve(stagingDir.trim());
+
+  if (resolved === serverConfig.stagingDir) {
+    return res.status(200).json({
+      stagingDir: serverConfig.stagingDir,
+      noop: true,
+    });
+  }
+
+  // Validate path is accessible BEFORE calling setStagingDir, so
+  // we can return a clean 400 with the underlying errno rather than
+  // letting setStagingDir's accessSync throw into the catch-all.
+  try {
+    await fs.access(resolved, fsConstants.R_OK | fsConstants.W_OK);
+  } catch (err) {
+    return res.status(400).json({
+      error: `Cannot access path: ${err.message}`,
+      code: err.code || 'EACCES',
+    });
+  }
+
+  // Apply. setStagingDir does its own validation as a defense in
+  // depth — same checks, but it owns the persistence contract.
+  try {
+    setStagingDir(resolved);
+  } catch (err) {
+    return res.status(400).json({
+      error: err.message,
+      code: err.code || 'EINVAL',
+    });
+  }
+
+  // Kick off rescan async. We return 202 immediately and let the SSE
+  // channel carry progress + completion. The frontend opens an
+  // EventSource on /api/staging/events and filters by rescanId.
+  const rescanId = `rescan_${Date.now()}`;
+
+  publishStagingEvent('rescan-start', {
+    rescanId,
+    stagingDir: serverConfig.stagingDir,
+  });
+
+  // Fire and forget. The catch handler turns failures into rescan-error
+  // events so the frontend isn't left hanging on a missed rescan-done.
+  scanStagingIntoDb({ rescanId })
+    .then((stats) => {
+      publishStagingEvent('rescan-done', {
+        rescanId,
+        stagingDir: serverConfig.stagingDir,
+        ...stats,
+      });
+    })
+    .catch((err) => {
+      console.error(`[rescan ${rescanId}] failed:`, err);
+      publishStagingEvent('rescan-error', {
+        rescanId,
+        error: err.message,
+      });
+    });
+
+  res.status(202).json({
+    stagingDir: serverConfig.stagingDir,
+    rescanId,
+  });
+});
+
 // GET /api/health - Health check (rename from /api/status)
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -3667,6 +4240,10 @@ async function startServer() {
   console.log(`┌──────────────────────────────────────────────────────────┐`)
   console.log(`│░░░░░░░░░░░░░░░░░ Kyabooru server ░░░░░░░░░░░░░░░░░░░░░░░░│`)
   console.log(`└──────────────────────────────────────────────────────────┘`)
+
+  const { stagingDir, source } = loadServerConfig();
+  console.log(`█ Loading server configuration from: ${source}`);
+  
   // Initialize database
   initDatabase();
   
@@ -3676,7 +4253,7 @@ async function startServer() {
   app.listen(PORT, 'localhost', () => {
     console.log(`█ Server running on  http://localhost:${PORT}`);
     console.log(`█ Database location: ${DB_PATH}`);
-    console.log(`█ Staging location:  ${STAGING_DIR}`);
+    console.log(`█ Staging location:  ${serverConfig.stagingDir}`);
     console.log('█ API endpoints ────────────────────────────────────────────');
     console.log('│ POST /api/images - Save image with tags');
     console.log('│ GET  /api/images/check-duplicate/:hash - Check duplicate');

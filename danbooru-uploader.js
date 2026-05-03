@@ -89,8 +89,8 @@ class DanbooruUploader {
   /**
    * Step 1 of the upload. Throws DanbooruUploadError with phase='upload' on failure.
    */
-  async uploadFile(imagePath) {
-    console.log(`Uploading file: ${path.basename(imagePath)}`);
+  async uploadFile(imagePath, { uploadTimeout = 10 * 60 * 1000 } = {}) {
+    console.log(`[booru-uploader] uploading: ${path.basename(imagePath)}`);
 
     const form = new FormData();
     form.append('upload[files][0]', fs.createReadStream(imagePath));
@@ -99,6 +99,7 @@ class DanbooruUploader {
     try {
       res = await this.client.post('/uploads.json', form, {
         headers: form.getHeaders(),
+        timeout: uploadTimeout,
       });
     } catch (err) {
       throw new DanbooruUploadError(
@@ -112,14 +113,20 @@ class DanbooruUploader {
       );
     }
 
-    if (res.status !== 201) {
+    if (res.status < 200 || res.status >= 300) {
       throw new DanbooruUploadError(
         `Upload returned ${res.status}`,
         { phase: 'upload', status: res.status, body: res.data }
       );
     }
-
-    console.log(`Upload successful! ID: ${res.data.id}`);
+    const uma = res.data?.upload_media_assets?.[0];
+    if (!uma?.id) {
+      throw new DanbooruUploadError(
+        `Upload returned ${res.status} but no media asset in body`,
+        { phase: 'upload', status: res.status, body: res.data }
+      );
+    }
+    console.log(`[booru-uploader] upload complete (ID: ${res.data.id})!`);
     return res.data;
   }
 
@@ -149,7 +156,9 @@ class DanbooruUploader {
 
     let res;
     try {
-      res = await this.client.post('/posts.json', postData);
+      res = await this.client.post('/posts.json', postData, {
+        timeout: options.postTimeout || 3 * 60 * 1000,
+      });
     } catch (err) {
       throw new DanbooruUploadError(
         `Post creation request failed: ${err.message}`,
@@ -162,14 +171,19 @@ class DanbooruUploader {
       );
     }
 
-    if (res.status !== 201) {
+    if (res.status < 200 || res.status >= 300) {
       throw new DanbooruUploadError(
         `Post creation returned ${res.status}`,
         { phase: 'post', status: res.status, body: res.data }
       );
     }
 
-    const postId = res.data.id;
+    const postId = res.data?.id;
+    if (postId == null) {
+      console.log(`Post creation returned ${res.status} with no post id — duplicate-skip`);
+      return null;
+    }
+
     console.log(`Post created successfully! Post ID: ${postId}`);
     return postId;
   }
@@ -178,9 +192,11 @@ class DanbooruUploader {
    * Server-friendly: takes an in-memory metadata object, no JSON file required.
    * Returns the new post ID. Throws DanbooruUploadError on failure.
    */
-  async uploadFromMetadata(imagePath, metadata, parentId = null) {
-    const uploadData = await this.uploadFile(imagePath);
-    return await this.createPost(uploadData, metadata, parentId);
+  async uploadFromMetadata(imagePath, metadata, parentId = null, options = {}) {
+      const uploadData = await this.uploadFile(imagePath, {
+        uploadTimeout: options.uploadTimeout,
+      });
+      return await this.createPost(uploadData, metadata, parentId, options);
   }
 
   /**
@@ -224,7 +240,9 @@ class DanbooruUploader {
 
     let res;
     try {
-      res = await this.client.post('/posts.json', postData);
+      res = await this.client.post('/posts.json', postData, {
+        timeout: options.postTimeout || 3 * 60 * 1000,
+      });
     } catch (err) {
       throw new DanbooruUploadError(
         `Post creation request failed: ${err.message}`,
@@ -237,14 +255,22 @@ class DanbooruUploader {
       );
     }
 
-    if (res.status !== 201) {
+    if (res.status < 200 || res.status >= 300) {
       throw new DanbooruUploadError(
         `Post creation returned ${res.status}`,
         { phase: 'post', status: res.status, body: res.data }
       );
     }
 
-    const postId = res.data.id;
+    const postId = res.data?.id;
+    if (postId == null) {
+      // 2xx with no post id = Danbooru already has this exact image on file
+      // (md5 collision detected during post creation). Caller should treat
+      // this as duplicate-skip, not as an error.
+      console.log(`Post creation returned ${res.status} with no post id — duplicate-skip`);
+      return null;
+    }
+
     console.log(`Post created successfully! Post ID: ${postId}`);
     return postId;
   }
