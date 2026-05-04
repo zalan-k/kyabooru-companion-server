@@ -12,6 +12,9 @@ const { spawn } = require('child_process');
 
 const { DanbooruUploader } = require('./danbooru-uploader');
 
+const { downloadManga } = require('./manga_modules/download');
+const { initMangaDedupSchema } = require('./manga_modules/dedup');
+
 const saveUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1000 * 1024 * 1024 },
@@ -37,6 +40,7 @@ const {
   serverConfig,
   loadServerConfig,
   setStagingDir,
+  setMangaDir, 
   snapshot: serverConfigSnapshot,
 } = require('./server-config');
 
@@ -2982,6 +2986,115 @@ app.post('/api/staging/upload-to-booru', async (req, res) => {
   }
 });
 
+// POST /api/manga/download — accept a fully-resolved manga bundle
+// and stream progress as SSE.
+//
+// Body shape:
+//   {
+//     source:    'nhentai' | 'hentainexus' | ...,
+//     galleryId: string,                       // optional, for logging/dedup display
+//     metadata: {
+//       title:           string,               // required
+//       titleJapanese:   string,               // optional
+//       artists:         string[],
+//       parodies:        string[],
+//       characters:      string[],             // optional, not in ComicInfo
+//       tags:            string[],
+//       language:        string,
+//       pageCount:       number,
+//       chapter:         number,               // default 1
+//       sourceUrl:       string,
+//       description:     string,               // optional
+//     },
+//     pages: [{ url: string, referer?: string }, ...]   // required, ≥1
+//   }
+//
+// Streams text/event-stream:
+//   event: start         { total }
+//   event: fetch         { completed, total }     // per-page progress
+//   event: archive       { stage: 'building' }
+//   event: done          { cbzPath, bytes, pageCount }
+//   event: error         { error, code? }
+//   event: duplicate     { existing }             // sent INSTEAD of done if dedup hits
+//
+// SSE rather than plain JSON because hentainexus chapters can take
+// a while and we want the UI to show per-page progress, same as the
+// booru upload stream.
+app.post('/api/manga/download', express.json({ limit: '1mb' }), async (req, res) => {
+  // Set up SSE BEFORE any validation so errors flow through the
+  // event stream rather than as opaque connection drops.
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  const send = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Cancel propagation: if the client disconnects, abort the fetch.
+  const abortController = new AbortController();
+  req.on('aborted', () => {
+    console.log('[manga] client aborted');
+    abortController.abort();
+  });
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      console.log('[manga] response closed before end');
+      abortController.abort();
+    }
+  });
+
+  const bundle = req.body || {};
+  const sourceLabel = bundle.source || 'unknown';
+  const titleLabel = bundle.metadata?.title || '(untitled)';
+  console.log(`[manga] download request: ${sourceLabel} / ${titleLabel} / ${bundle.pages?.length ?? '?'} pages`);
+
+  try {
+    send('start', { total: bundle.pages?.length || 0 });
+
+    const result = await downloadManga({
+      db,
+      mangaDir: serverConfig.mangaDir,
+      bundle,
+      signal: abortController.signal,
+      onProgress: ({ phase, completed, total }) => {
+        if (phase === 'fetch') {
+          send('fetch', { completed, total });
+        } else if (phase === 'archive') {
+          send('archive', { stage: completed === 0 ? 'building' : 'done' });
+        }
+      },
+    });
+
+    send('done', {
+      cbzPath: result.cbzPath,
+      bytes: result.bytes,
+      pageCount: result.pageCount,
+    });
+    res.end();
+    console.log(`[manga] saved: ${result.cbzPath} (${result.pageCount} pages, ${(result.bytes / 1024 / 1024).toFixed(1)} MB)`);
+
+  } catch (err) {
+    if (err.code === 'EDUPLICATE') {
+      send('duplicate', { existing: err.existing });
+      res.end();
+      console.log(`[manga] duplicate: ${titleLabel}`);
+      return;
+    }
+    if (err.name === 'AbortError') {
+      send('error', { error: 'Cancelled by client', code: 'ECANCELLED' });
+      res.end();
+      console.log(`[manga] cancelled: ${titleLabel}`);
+      return;
+    }
+    console.error('[manga] download failed:', err);
+    send('error', { error: err.message, code: err.code || 'EUNKNOWN' });
+    res.end();
+  }
+});
+
 /**
  * POST /api/staging/save
  *
@@ -4138,79 +4251,124 @@ app.get('/api/server-config', (req, res) => {
 // and finally 'rescan-done' (or 'rescan-error') SSE events so the UI
 // can show a progress bar without blocking the HTTP response.
 app.patch('/api/server-config', async (req, res) => {
-  const { stagingDir } = req.body || {};
+  const body = req.body || {};
+  const stagingPresent = typeof body.stagingDir === 'string';
+  const mangaPresent = typeof body.mangaDir === 'string';
 
-  if (typeof stagingDir !== 'string' || !stagingDir.trim()) {
+  if (!stagingPresent && !mangaPresent) {
     return res.status(400).json({
-      error: 'stagingDir must be a non-empty string',
+      error: 'must provide stagingDir, mangaDir, or both',
       code: 'EINVAL',
     });
   }
 
-  const resolved = path.resolve(stagingDir.trim());
+  // Phase 1: validate everything before mutating anything.
+  let resolvedStaging = null;
+  let resolvedManga = null;
+  let stagingChanged = false;
+  let mangaChanged = false;
 
-  if (resolved === serverConfig.stagingDir) {
-    return res.status(200).json({
-      stagingDir: serverConfig.stagingDir,
-      noop: true,
-    });
+  if (stagingPresent) {
+    if (!body.stagingDir.trim()) {
+      return res.status(400).json({ error: 'stagingDir cannot be empty', code: 'EINVAL' });
+    }
+    resolvedStaging = path.resolve(body.stagingDir.trim());
+    stagingChanged = resolvedStaging !== serverConfig.stagingDir;
+    if (stagingChanged) {
+      try {
+        await fs.access(resolvedStaging, fsConstants.R_OK | fsConstants.W_OK);
+      } catch (err) {
+        return res.status(400).json({
+          error: `Cannot access staging dir: ${err.message}`,
+          code: err.code || 'EACCES',
+        });
+      }
+    }
   }
 
-  // Validate path is accessible BEFORE calling setStagingDir, so
-  // we can return a clean 400 with the underlying errno rather than
-  // letting setStagingDir's accessSync throw into the catch-all.
-  try {
-    await fs.access(resolved, fsConstants.R_OK | fsConstants.W_OK);
-  } catch (err) {
-    return res.status(400).json({
-      error: `Cannot access path: ${err.message}`,
-      code: err.code || 'EACCES',
-    });
+  if (mangaPresent) {
+    if (!body.mangaDir.trim()) {
+      return res.status(400).json({ error: 'mangaDir cannot be empty', code: 'EINVAL' });
+    }
+    resolvedManga = path.resolve(body.mangaDir.trim());
+    mangaChanged = resolvedManga !== serverConfig.mangaDir;
+    if (mangaChanged) {
+      try {
+        await fs.access(resolvedManga, fsConstants.R_OK | fsConstants.W_OK);
+      } catch (err) {
+        return res.status(400).json({
+          error: `Cannot access manga dir: ${err.message}`,
+          code: err.code || 'EACCES',
+        });
+      }
+    }
   }
 
-  // Apply. setStagingDir does its own validation as a defense in
-  // depth — same checks, but it owns the persistence contract.
-  try {
-    setStagingDir(resolved);
-  } catch (err) {
-    return res.status(400).json({
-      error: err.message,
-      code: err.code || 'EINVAL',
-    });
+  // Phase 2: apply. Both paths have already passed access checks, so
+  // failure here means disk-write failure inside persistConfig — rare,
+  // and setStagingDir/setMangaDir each roll back their own state on
+  // persist failure. A staging+manga change where staging persists
+  // and manga then fails leaves the staging change committed; we
+  // surface the error and include `partial` so the caller knows.
+  const changed = [];
+
+  if (stagingChanged) {
+    try {
+      setStagingDir(resolvedStaging);
+      changed.push('stagingDir');
+    } catch (err) {
+      return res.status(400).json({ error: err.message, code: err.code || 'EINVAL' });
+    }
   }
 
-  // Kick off rescan async. We return 202 immediately and let the SSE
-  // channel carry progress + completion. The frontend opens an
-  // EventSource on /api/staging/events and filters by rescanId.
-  const rescanId = `rescan_${Date.now()}`;
-
-  publishStagingEvent('rescan-start', {
-    rescanId,
-    stagingDir: serverConfig.stagingDir,
-  });
-
-  // Fire and forget. The catch handler turns failures into rescan-error
-  // events so the frontend isn't left hanging on a missed rescan-done.
-  scanStagingIntoDb({ rescanId })
-    .then((stats) => {
-      publishStagingEvent('rescan-done', {
-        rescanId,
-        stagingDir: serverConfig.stagingDir,
-        ...stats,
-      });
-    })
-    .catch((err) => {
-      console.error(`[rescan ${rescanId}] failed:`, err);
-      publishStagingEvent('rescan-error', {
-        rescanId,
+  if (mangaChanged) {
+    try {
+      setMangaDir(resolvedManga);
+      changed.push('mangaDir');
+    } catch (err) {
+      return res.status(400).json({
         error: err.message,
+        code: err.code || 'EINVAL',
+        partial: changed,
       });
-    });
+    }
+  }
 
-  res.status(202).json({
+  // Phase 3: side effects. Only stagingDir triggers a rescan.
+  let rescanId = null;
+  if (changed.includes('stagingDir')) {
+    rescanId = `rescan_${Date.now()}`;
+    publishStagingEvent('rescan-start', {
+      rescanId,
+      stagingDir: serverConfig.stagingDir,
+    });
+    scanStagingIntoDb({ rescanId })
+      .then((stats) => {
+        publishStagingEvent('rescan-done', {
+          rescanId,
+          stagingDir: serverConfig.stagingDir,
+          ...stats,
+        });
+      })
+      .catch((err) => {
+        console.error(`[rescan ${rescanId}] failed:`, err);
+        publishStagingEvent('rescan-error', { rescanId, error: err.message });
+      });
+  }
+
+  // Phase 4: response.
+  const responseBody = {
     stagingDir: serverConfig.stagingDir,
+    mangaDir: serverConfig.mangaDir,
+    changed,
     rescanId,
-  });
+  };
+
+  if (changed.length === 0) {
+    return res.status(200).json({ ...responseBody, noop: true });
+  }
+
+  res.status(rescanId ? 202 : 200).json(responseBody);
 });
 
 // GET /api/health - Health check (rename from /api/status)
@@ -4241,19 +4399,21 @@ async function startServer() {
   console.log(`│░░░░░░░░░░░░░░░░░ Kyabooru server ░░░░░░░░░░░░░░░░░░░░░░░░│`)
   console.log(`└──────────────────────────────────────────────────────────┘`)
 
-  const { stagingDir, source } = loadServerConfig();
-  console.log(`█ Loading server configuration from: ${source}`);
+  const { stagingDir, sources } = loadServerConfig();
+  console.log(`█ Loading image configuration from: ${sources.staging}`);
+  console.log(`█ Loading manga configuration from: ${sources.manga}`);
   
   // Initialize database
   initDatabase();
-  
+  initMangaDedupSchema(db);
   // Build in-memory tag cache from staging directory
   await scanStagingIntoDb();
 
   app.listen(PORT, 'localhost', () => {
     console.log(`█ Server running on  http://localhost:${PORT}`);
     console.log(`█ Database location: ${DB_PATH}`);
-    console.log(`█ Staging location:  ${serverConfig.stagingDir}`);
+    console.log(`█ Image location:    ${serverConfig.stagingDir}`);
+    console.log(`█ Manga location:    ${serverConfig.mangaDir}`);
     console.log('█ API endpoints ────────────────────────────────────────────');
     console.log('│ POST /api/images - Save image with tags');
     console.log('│ GET  /api/images/check-duplicate/:hash - Check duplicate');
