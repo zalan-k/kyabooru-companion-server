@@ -21,7 +21,7 @@ const saveUpload = multer({
 });
 
 const booruUploader = new DanbooruUploader({
-  baseUrl:  process.env.DANBOORU_URL  || 'http://192.168.0.205:3000',
+  baseUrl:  process.env.DANBOORU_URL  || 'https://kyabooru.kyabatsunas.synology.me/',
   username: process.env.DANBOORU_USER || 'kyabatsu',
   apiKey:   process.env.DANBOORU_KEY  || 'EPBFXUJbxWFsBPq2QZaf7TcY',
 });
@@ -31,7 +31,7 @@ const booruUploader = new DanbooruUploader({
 const BOORU_PUBLIC_URL = (
   process.env.DANBOORU_PUBLIC_URL ||
   process.env.DANBOORU_URL ||
-  'http://192.168.0.205:3000'
+  'https://kyabooru.kyabatsunas.synology.me/'
 ).replace(/\/$/, '');
 
 const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
@@ -82,12 +82,9 @@ class TagCache {
     const key = query.toLowerCase();
     const entry = this.cache.get(key);
     
-    if (entry && (Date.now() - entry.timestamp) < this.CACHE_TTL) {
-      console.log(`🚀 Cache HIT for: ${query}`);
+    if (entry && (Date.now() - entry.timestamp) < this.CACHE_TTL) { 
       return entry.data;
     }
-    
-    console.log(`💾 Cache MISS for: ${query}`);
     return null;
   }
   
@@ -108,7 +105,6 @@ class TagCache {
   }
   
   invalidate() {
-    console.log('🗑️ Invalidating tag cache');
     this.cache.clear();
   }
 }
@@ -638,8 +634,8 @@ async function scanStagingIntoDb(options = {}) {
   const elapsed = Date.now() - t0;
   console.log(
     `  [index-scan] done in ${elapsed}ms — ` +
-    `inserted=${inserted} updated=${updated} skipped=${skipped} ` +
-    `errored=${errored} pruned=${pruned}`
+    `ins: ${inserted} upd: ${updated} skip: ${skipped} ` +
+    `err: ${errored} prune: ${pruned}`
   );
 
   return { inserted, updated, skipped, errored, pruned, elapsed };
@@ -2661,7 +2657,7 @@ async function postWorkerTick(scopeIds = null) {
     for (const { id, jsonPath, metadata } of pending) {
       try {
         const existingTagCount = countMetadataTags(metadata);
-        if (existingTagCount < 10) {
+        if (existingTagCount < 20) {
           const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
           if (aiTags.length === 0) {
             console.warn(`[booru-postman] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
@@ -4399,13 +4395,13 @@ async function startServer() {
   console.log(`│░░░░░░░░░░░░░░░░░ Kyabooru server ░░░░░░░░░░░░░░░░░░░░░░░░│`)
   console.log(`└──────────────────────────────────────────────────────────┘`)
 
+  // Load config file
   const { stagingDir, sources } = loadServerConfig();
-  console.log(`█ Loading image configuration from: ${sources.staging}`);
-  console.log(`█ Loading manga configuration from: ${sources.manga}`);
   
   // Initialize database
   initDatabase();
   initMangaDedupSchema(db);
+  
   // Build in-memory tag cache from staging directory
   await scanStagingIntoDb();
 
