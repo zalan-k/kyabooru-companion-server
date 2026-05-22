@@ -84,10 +84,12 @@ function buildComicInfoXml(metadata) {
   };
 
   push('Series', metadata.title);
+  if (metadata.chapter) push('Number', String(metadata.chapter));
   push('AlternateSeries', metadata.titleJapanese);
-  if (metadata.artists?.length) push('Writer', metadata.artists.join(', '));
-  if (metadata.parodies?.length) push('Genre', metadata.parodies.join(', '));
-  if (metadata.tags?.length) push('Tags', metadata.tags.join(', '));
+  if (metadata.artists?.length)  push('Writer', metadata.artists.join(', '));
+  if (metadata.parodies?.length) push('Genre',  metadata.parodies.join(', '));
+  if (metadata.tags?.length)     push('Tags',   metadata.tags.join(', '));
+  if (metadata.characters?.length) push('Characters', metadata.characters.join(', '));
   push('Language', metadata.language);
   if (metadata.pageCount) push('PageCount', String(metadata.pageCount));
   push('Web', metadata.sourceUrl);

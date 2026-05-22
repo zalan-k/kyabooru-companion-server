@@ -42,20 +42,21 @@ const CONFIG_PATH = path.join(__dirname, 'server-config.json');
 const state = {
   stagingDir: null,
   mangaDir: null,
+  bindHost: null,
 };
 
 const serverConfig = {
   get stagingDir() {
-    if (!state.stagingDir) {
-      throw new Error('serverConfig.stagingDir accessed before loadServerConfig()');
-    }
+    if (!state.stagingDir) { throw new Error('serverConfig.stagingDir accessed before loadServerConfig()');}
     return state.stagingDir;
   },
   get mangaDir() {
-    if (!state.mangaDir) {
-      throw new Error('serverConfig.mangaDir accessed before loadServerConfig()');
-    }
+    if (!state.mangaDir) { throw new Error('serverConfig.mangaDir accessed before loadServerConfig()');}
     return state.mangaDir;
+  },
+  get bindHost() {
+    if (!state.bindHost) { throw new Error('serverConfig.bindHost accessed before loadServerConfig()');}
+    return state.bindHost;
   },
   get trashDir() {
     return path.join(this.stagingDir, '.trash');
@@ -114,6 +115,14 @@ function loadServerConfig() {
     defaultPath: path.join(os.homedir(), 'Manga'),
   });
 
+  let bindHost = { value: '127.0.0.1', source: 'default' };
+  const envHost = process.env.KYABOORU_BIND_HOST;
+  if (typeof envHost === 'string' && envHost.trim()) {
+    bindHost = { value: envHost.trim(), source: 'env' };
+  } else if (typeof parsed.bindHost === 'string' && parsed.bindHost.trim()) {
+    bindHost = { value: parsed.bindHost.trim(), source: 'config' };
+  }
+
   // Auto-create both. First-boot defaults aren't user-typed, so silent
   // creation is the right behavior. Loud failure if either fails.
   for (const { value } of [staging, manga]) {
@@ -125,9 +134,10 @@ function loadServerConfig() {
     }
   }
 
-  state.stagingDir = staging.value;
-  state.mangaDir = manga.value;
-
+  state.stagingDir  = staging.value;
+  state.mangaDir    = manga.value;
+  state.bindHost    = bindHost.value;
+  
   // Persist the resolved values so the file stays in sync. No-op if
   // it already matches.
   try {
@@ -138,10 +148,12 @@ function loadServerConfig() {
 
   return {
     stagingDir: state.stagingDir,
-    mangaDir: state.mangaDir,
+    mangaDir:   state.mangaDir,
+    bindHost:   state.bindHost,
     sources: {
-      staging: staging.source,
-      manga: manga.source,
+      staging:  staging.source,
+      manga:    manga.source,
+      bindHost: bindHost.source,
     },
   };
 }
@@ -198,7 +210,8 @@ function setMangaDir(newPath) {
 function persistConfig() {
   const payload = {
     stagingDir: state.stagingDir,
-    mangaDir: state.mangaDir,
+    mangaDir:   state.mangaDir,
+    bindHost:   state.bindHost,
   };
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(payload, null, 2));
 }
@@ -209,7 +222,8 @@ function persistConfig() {
 function snapshot() {
   return {
     stagingDir: state.stagingDir,
-    mangaDir: state.mangaDir,
+    mangaDir:   state.mangaDir,
+    bindHost:   state.bindHost,
   };
 }
 

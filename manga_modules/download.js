@@ -192,7 +192,9 @@ async function fetchAllPages({ pages, onProgress, signal }) {
 
   async function worker() {
     while (true) {
-      if (signal?.aborted) return;
+      if (signal?.aborted) {
+        throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+      }
       const i = nextIndex++;
       if (i >= pages.length) return;
       results[i] = await fetchPage(pages[i], signal);

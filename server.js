@@ -14,10 +14,16 @@ const { DanbooruUploader } = require('./danbooru-uploader');
 
 const { downloadManga } = require('./manga_modules/download');
 const { initMangaDedupSchema } = require('./manga_modules/dedup');
+const { uploadManga } = require('./manga_modules/upload');
 
 const saveUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1000 * 1024 * 1024 },
+});
+
+const mangaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024, files: 500 },
 });
 
 const booruUploader = new DanbooruUploader({
@@ -124,6 +130,78 @@ app.use((req, res, next) => {
 // Database setup
 const DB_PATH = path.join(process.cwd(), 'tag_saver.db');
 let db;
+
+// ============================================================
+// Lifecycle — WAL checkpointer + graceful shutdown
+// ============================================================
+let httpServer = null;             // set in startServer()
+let walCheckpointInterval = null;  // set after initDatabase()
+let shuttingDown = false;
+
+const WAL_CHECKPOINT_INTERVAL_MS = 30 * 60 * 1000; // 30 min
+
+function startWalCheckpointer() {
+  walCheckpointInterval = setInterval(() => {
+    try {
+      // TRUNCATE resets the WAL file to zero bytes once readers release.
+      // Single-process + better-sqlite3 means no concurrent readers in
+      // this Node process; with WAL mode, external readers (sqlite3 CLI,
+      // litestream, etc.) would briefly block this call but not corrupt.
+      const [r] = db.pragma('wal_checkpoint(TRUNCATE)');
+      if (r && r.busy) {
+        console.warn(`[wal] checkpoint busy: log=${r.log} ckpt=${r.checkpointed}`);
+      }
+    } catch (err) {
+      console.error('[wal] checkpoint failed:', err.message);
+    }
+  }, WAL_CHECKPOINT_INTERVAL_MS);
+  walCheckpointInterval.unref?.();
+}
+
+async function shutdown(reason = 'manual') {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`█ Shutdown initiated (${reason})`);
+
+  if (walCheckpointInterval) {
+    clearInterval(walCheckpointInterval);
+    walCheckpointInterval = null;
+  }
+
+  // End SSE subscribers so their keep-alive sockets actually close;
+  // otherwise server.close() will sit waiting on them forever.
+  for (const res of sseSubscribers) {
+    try { res.end(); } catch {}
+  }
+  sseSubscribers.clear();
+
+  // Stop accepting new connections, wait for in-flight to finish.
+  // Hard 5s ceiling so a wedged request can't block shutdown.
+  await new Promise(resolve => {
+    if (!httpServer) return resolve();
+    const t = setTimeout(() => {
+      console.warn('[shutdown] server.close timed out, forcing exit');
+      resolve();
+    }, 5000);
+    t.unref?.();
+    httpServer.close(() => { clearTimeout(t); resolve(); });
+  });
+
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+    console.log('█ Database closed cleanly');
+  } catch (err) {
+    console.error('[shutdown] db close failed:', err.message);
+  }
+
+  console.log('█ Goodbye');
+  process.exit(0);
+}
+
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
 
 // Initialize database (synchronous now — better-sqlite3 has no async
 // API, all calls block. With our query volume this is fine.)
@@ -2086,45 +2164,80 @@ async function extractVideoThumbnail(videoPath, id, size = 200) {
   await fs.mkdir(serverConfig.thumbsDir, { recursive: true });
   const outPath = path.join(serverConfig.thumbsDir, `${id}.jpg`);
 
+  // Probe duration first. Some clips (rule34, Twitter shorts) are
+  // under a second long. A naive `-ss 1` against a 0.66s clip seeks
+  // past the end, yields zero frames, and ffmpeg cheerfully exits 0
+  // having written nothing — which then trips Sharp downstream.
+  const duration = await probeDuration(videoPath);
+  // Aim for ~10% into the clip, capped at 1s, floored at 0. The
+  // small offset avoids the very first frame which is sometimes
+  // black/blank from encoder warmup.
+  const seekTime = Math.max(0, Math.min(1, duration * 0.1));
+
   return new Promise((resolve, reject) => {
-    // -ss 1               Seek to 1 second
-    // -i <input>          Input file
-    // -frames:v 1         Extract exactly one frame
-    // -vf scale=...       Resize, keep aspect ratio (force_original_aspect_ratio=decrease
-    //                     fits within size×size, may produce smaller dimensions)
-    // -q:v 2              JPEG quality (2 = high, scale 1-31, lower = better)
-    // -y                  Overwrite without prompt
     const args = [
-      '-ss', '1',
+      '-ss', String(seekTime),
       '-i', videoPath,
       '-frames:v', '1',
-      '-vf', `scale=${size}:${size}:force_original_aspect_ratio=decrease`,
+      // First scale: aspect-preserving fit into size×size box.
+      // Second scale: force even dimensions (MJPEG/yuvj420p needs them).
+      // format=yuvj420p: explicit JPEG-range pixel format for the encoder.
+      '-vf', `scale=${size}:${size}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuvj420p`,
       '-q:v', '2',
       '-y',
       outPath,
     ];
-
     const proc = spawn('ffmpeg', args);
-
-    // Buffer stderr — ffmpeg writes progress + errors there. We need
-    // it for diagnostics if the call fails.
     let stderr = '';
     proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
-
     proc.on('error', err => {
-      // Spawning ffmpeg itself failed (e.g. not on PATH)
       reject(new Error(`ffmpeg spawn failed: ${err.message}`));
     });
-
-    proc.on('close', code => {
-      if (code === 0) {
-        resolve(outPath);
-      } else {
-        // Tail the stderr — full ffmpeg output is verbose
+    proc.on('close', async code => {
+      if (code !== 0) {
         const tail = stderr.split('\n').slice(-10).join('\n');
         reject(new Error(`ffmpeg exited ${code}: ${tail}`));
+        return;
+      }
+      // ffmpeg can exit 0 having produced no output (e.g. -ss past
+      // end of stream). Verify a real file exists before declaring
+      // success — otherwise Sharp downstream will trip with "Input
+      // file is missing" and we'll have wasted everyone's time
+      // debugging the wrong layer.
+      try {
+        const stat = await fs.stat(outPath);
+        if (stat.size === 0) {
+          reject(new Error(`ffmpeg produced empty thumbnail (likely -ss ${seekTime}s past end of ${duration}s clip)`));
+          return;
+        }
+        resolve(outPath);
+      } catch (err) {
+        reject(new Error(`ffmpeg exited 0 but no output file produced (likely seek past end; duration=${duration}s, seek=${seekTime}s)`));
       }
     });
+  });
+}
+
+/**
+ * Get a video's duration in seconds via ffprobe. Returns 0 on any
+ * failure so the caller can pick a sensible default seek time
+ * without crashing.
+ */
+async function probeDuration(videoPath) {
+  return new Promise(resolve => {
+    const proc = spawn('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      videoPath,
+    ]);
+    let stdout = '';
+    proc.stdout.on('data', chunk => { stdout += chunk.toString(); });
+    proc.on('close', () => {
+      const dur = parseFloat(stdout.trim());
+      resolve(Number.isFinite(dur) ? dur : 0);
+    });
+    proc.on('error', () => resolve(0));
   });
 }
 
@@ -2496,7 +2609,7 @@ const POST_WORKER = {
     meta: 0.25,
   },
   POLITENESS_GAP_MS: 500,
-  MAINTENANCE_INTERVAL_MS: 30 * 60 * 1000,
+  MAINTENANCE_INTERVAL_MS: 60 * 60 * 1000,
   get DUPLICATE_LOG() {
     return path.join(serverConfig.stagingDir, 'duplicate-failures.log');
   },
@@ -2506,7 +2619,7 @@ const POST_WORKER = {
  * Find sidecars that have been uploaded but not yet posted.
  * Sorted so pool members are grouped and ordered by poolIndex.
  */
-async function findPendingPosts(scopeIds = null) {
+async function findPendingPosts(scopeIds = null, { skipFailed = false } = {}) {
   const files = glob.sync(`${serverConfig.stagingDir}/**/*.json`).filter(f => !f.includes('.trash'));
   const scopeSet = scopeIds ? new Set(scopeIds) : null;
   const pending = [];
@@ -2516,8 +2629,11 @@ async function findPendingPosts(scopeIds = null) {
       const id = path.basename(file, '.json');
       if (scopeSet && !scopeSet.has(id)) continue;
       const json = JSON.parse(await fs.readFile(file, 'utf8'));
-      if (json.booruUploadId && json.booruMediaAssetId &&
-          (json.booruPostId === undefined || json.booruPostId === -1)) {
+      
+      if (!json.booruUploadId || !json.booruMediaAssetId) continue;
+      const isFailed = json.booruPostId === -1;
+      const isNew   = json.booruPostId === undefined;
+      if (isNew || (isFailed && !skipFailed)) {
         pending.push({ jsonPath: file, id, metadata: json });
       }
     } catch {
@@ -2626,7 +2742,7 @@ function countMetadataTags(metadata) {
 }
 
 /** One worker tick — drains the pending queue once. */
-async function postWorkerTick(scopeIds = null) {
+async function postWorkerTick(scopeIds = null, { skipFailed = false } = {}) {
   if (POST_WORKER.running) {
     POST_WORKER.scheduled = true;
     // Merge scopes for the next run. null is "broadest" — once any
@@ -2639,12 +2755,13 @@ async function postWorkerTick(scopeIds = null) {
       }
       for (const id of scopeIds) POST_WORKER.pendingScope.add(id);
     }
+    if (!skipFailed) POST_WORKER.pendingSkipFailed = false;
     return;
   }
   POST_WORKER.running = true;
 
   try {
-    const pending = await findPendingPosts(scopeIds);
+    const pending = await findPendingPosts(scopeIds, { skipFailed });
     if (pending.length === 0) return;
 
     console.log(
@@ -2723,20 +2840,22 @@ async function postWorkerTick(scopeIds = null) {
     if (POST_WORKER.scheduled) {
       POST_WORKER.scheduled = false;
       const nextScope = POST_WORKER.pendingScope;
+      const nextSkipFailed = POST_WORKER.pendingSkipFailed ?? true;
       POST_WORKER.pendingScope = null;
+      POST_WORKER.pendingSkipFailed = true;
       const scopeArg = nextScope instanceof Set ? [...nextScope] : null;
-      setImmediate(() => postWorkerTick(scopeArg));
+      setImmediate(() => postWorkerTick(scopeArg, { skipFailed: nextSkipFailed }));
     }
   }
 }
 
 /** Public entry — coalesces concurrent calls. */
-function kickPostWorker(scopeIds = null) {
-  postWorkerTick(scopeIds).catch(err => console.error('[booru-postman] tick threw:', err));
+function kickPostWorker(scopeIds = null, opts = {}) {
+  postWorkerTick(scopeIds, opts).catch(err => console.error('[booru-postman] tick threw:', err));
 }
 
 // Maintenance: catch any sidecars uploaded outside the SSE flow.
-setInterval(kickPostWorker, POST_WORKER.MAINTENANCE_INTERVAL_MS);
+setInterval(() => kickPostWorker(null, { skipFailed: true }), POST_WORKER.MAINTENANCE_INTERVAL_MS);
 
 // ============================================================
 // CONFIG — suggester routes
@@ -3088,6 +3207,58 @@ app.post('/api/manga/download', express.json({ limit: '1mb' }), async (req, res)
     console.error('[manga] download failed:', err);
     send('error', { error: err.message, code: err.code || 'EUNKNOWN' });
     res.end();
+  }
+});
+
+app.post('/api/manga/upload', mangaUpload.array('pages', 500), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No pages uploaded' });
+    }
+    if (!req.body.metadata) {
+      return res.status(400).json({ success: false, error: 'Missing metadata field' });
+    }
+
+    let metadata;
+    try {
+      metadata = JSON.parse(req.body.metadata);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `Bad metadata JSON: ${err.message}` });
+    }
+    if (!metadata.title) {
+      return res.status(400).json({ success: false, error: 'metadata.title is required' });
+    }
+
+    // Defense-in-depth: sort by originalname. The client zero-pads,
+    // so localeCompare gives correct numeric order.
+    const pages = [...req.files].sort((a, b) =>
+      a.originalname.localeCompare(b.originalname)
+    );
+
+    console.log(`[manga-upload] request: ${metadata.title} (ch.${metadata.chapter}) / ${pages.length} pages`);
+
+    // Delegate to manga_modules/upload — you'll implement this.
+    // Suggested signature:
+    //   uploadManga({ db, mangaDir, metadata, pages })
+    //     returns { cbzPath, bytes, pageCount }
+    const { uploadManga } = require('./manga_modules/upload');
+    const result = await uploadManga({
+      db,
+      mangaDir: serverConfig.mangaDir,
+      metadata,
+      pages,   // multer file objects: { buffer, originalname, mimetype, size }
+    });
+
+    res.json({
+      success: true,
+      cbzPath: result.cbzPath,
+      bytes: result.bytes,
+      pageCount: result.pageCount,
+    });
+    console.log(`[manga-upload] saved: ${result.cbzPath} (${result.pageCount} pages, ${(result.bytes / 1024 / 1024).toFixed(1)} MB)`);
+  } catch (err) {
+    console.error('[manga-upload] failed:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -3452,7 +3623,6 @@ app.get('/api/tags/search', (req, res) => {
     tagCache.set(q, final);
 
     const time = Number(process.hrtime.bigint() - startTime) / 1000000;
-    console.log(`🔍 Tag search "${q}": ${final.length} results in ${time.toFixed(1)}ms`);
 
     res.json(final);
   } catch (err) {
@@ -4376,6 +4546,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// POST /api/shutdown - Gracefully stop the server.
+// Server binds to localhost only, so no auth needed. Returns 202 and
+// then defers the actual shutdown so the response can flush before the
+// socket dies.
+app.post('/api/shutdown', (req, res) => {
+  if (shuttingDown) {
+    return res.status(409).json({ status: 'already shutting down' });
+  }
+  res.status(202).json({ status: 'shutting down' });
+  setImmediate(() => shutdown('api'));
+});
+
+
 module.exports = {
   scanStagingDirectory,
   loadStagingImage,
@@ -4402,11 +4585,13 @@ async function startServer() {
   initDatabase();
   initMangaDedupSchema(db);
   
+  startWalCheckpointer();
+
   // Build in-memory tag cache from staging directory
   await scanStagingIntoDb();
 
-  app.listen(PORT, 'localhost', () => {
-    console.log(`█ Server running on  http://localhost:${PORT}`);
+  httpServer = app.listen(PORT, serverConfig.bindHost, () => {
+    console.log(`█ Server running on  http://${serverConfig.bindHost}:${PORT}`);
     console.log(`█ Database location: ${DB_PATH}`);
     console.log(`█ Image location:    ${serverConfig.stagingDir}`);
     console.log(`█ Manga location:    ${serverConfig.mangaDir}`);
@@ -4417,6 +4602,7 @@ async function startServer() {
     console.log('│ GET  /api/pools/:id/highest-index - Get pool info');
     console.log('│ GET  /api/export - Export all data');
     console.log('│ GET  /api/status - Server status');
+    console.log('│ POST /api/shutdown - Graceful shutdown');
     console.log('│ GET  /api/config - Get taxonomy config');
     console.log('│ POST /api/config/analyze - Run tag analysis');
     console.log('│ GET  /api/staging/images - List staging images');
