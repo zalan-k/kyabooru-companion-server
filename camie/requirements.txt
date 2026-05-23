@@ -1,0 +1,29 @@
+# CUDA wheels for torch — extra index, not primary
+--extra-index-url https://download.pytorch.org/whl/cu126
+ 
+# Web Server & Backend Ecosystem
+fastapi>=0.104
+uvicorn>=0.24
+pydantic>=2.0
+ 
+# Deep Learning Backbone (CUDA-Accelerated)
+# torchvision pulled in for its image transforms (ImageNet normalization)
+torch>=2.0
+torchvision>=0.15.0
+ 
+# ONNX Runtime — this is what actually runs Camie v2 at inference time.
+# onnxruntime-gpu auto-selects the CUDA execution provider when available,
+# falls back to CPU otherwise. Don't install plain `onnxruntime` alongside
+# it; the two conflict on Windows.
+onnxruntime-gpu>=1.18
+ 
+# Inference & Image Management
+pillow>=10.0
+# numpy<2 is intentional — Camie's bundled tools have known compat issues
+# with the numpy 2.x API break. Plenty of head-scratching avoided here.
+numpy>=1.24.0,<2.0
+huggingface-hub>=0.20
+ 
+# Camie v2 itself lives on HuggingFace as Camais03/camie-tagger-v2 — it's
+# a model, not a pip package. Weights are downloaded on first run via
+# huggingface_hub from inside tag_server.py.

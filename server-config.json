@@ -1,5 +1,6 @@
 {
   "stagingDir": "F:\\kaali-stage",
   "mangaDir": "H:\\kavita_library\\doujinshi",
-  "bindHost": "127.0.0.1"
+  "bindHost": "127.0.0.1",
+  "camieEnabled": true
 }

@@ -275,59 +275,6 @@ class DanbooruUploader {
     return postId;
   }
 
-  /**
-   * Fetch AI tags for a media asset.
-   *
-   * Returns array of { tag, score, category } with:
-   *   - tag: resolved tag name (string)
-   *   - score: normalized 0-1 (was 0-100 from booru)
-   *   - category: 'general' | 'artist' | 'copyright' | 'character' | 'meta'
-   *
-   * Returns [] if no tags yet (autotagger still chewing).
-   */
-  async getAiTags(mediaAssetId) {
-    // Step 1: raw {tag_id, score} pairs
-    let raw;
-    try {
-      const res = await this.client.get('/ai_tags.json', {
-        params: { 'search[media_asset_id]': mediaAssetId, limit: 100 },
-      });
-      raw = res.data || [];
-    } catch (err) {
-      console.warn(`getAiTags step1 failed for media asset ${mediaAssetId}: ${err.message}`);
-      return [];
-    }
-
-    if (raw.length === 0) return [];
-
-    // Step 2: resolve tag_ids to names + categories
-    const ids = raw.map(t => t.tag_id).join(',');
-    let tagDocs;
-    try {
-      const res = await this.client.get('/tags.json', {
-        params: { 'search[id]': ids, limit: 200 },
-      });
-      tagDocs = res.data || [];
-    } catch (err) {
-      console.warn(`getAiTags step2 failed for media asset ${mediaAssetId}: ${err.message}`);
-      return [];
-    }
-
-    const tagMap = new Map(tagDocs.map(t => [t.id, t]));
-    const CAT_NUM_TO_NAME = {
-      0: 'general', 1: 'artist', 3: 'copyright', 4: 'character', 5: 'meta',
-    };
-
-    return raw.map(t => {
-      const tag = tagMap.get(t.tag_id);
-      return {
-        tag: tag?.name || `unknown_${t.tag_id}`,
-        score: (t.score ?? 0) / 100,
-        category: CAT_NUM_TO_NAME[tag?.category] || 'general',
-      };
-    });
-  }
-
   // ---------- CLI-friendly methods (non-throwing, for the __main__ block) ----------
 
   async findImageJsonPairs(folderPath) {

@@ -16,6 +16,8 @@ const { downloadManga } = require('./manga_modules/download');
 const { initMangaDedupSchema } = require('./manga_modules/dedup');
 const { uploadManga } = require('./manga_modules/upload');
 
+const { getCamie } = require('./camie/v2');
+
 const saveUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1000 * 1024 * 1024 },
@@ -42,16 +44,150 @@ const BOORU_PUBLIC_URL = (
 
 const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
 
+// Singleton Camie wrapper. Module-level so /save, /refresh, and the
+// PATCH /api/server-config handler all share it.
+const camie = getCamie();
+// Bridge Camie state changes to the staging SSE stream so the UI's
+// stat card updates without polling.
+camie.on('state', (state) => publishStagingEvent('camie-state', state));
+
 const {
   serverConfig,
   loadServerConfig,
   setStagingDir,
-  setMangaDir, 
+  setMangaDir,
+  setCamieEnabled,
   snapshot: serverConfigSnapshot,
 } = require('./server-config');
 
 const app = express();
 const PORT = 3737; // Fixed port for the extension to connect to
+
+/**
+ * If Camie is enabled and the image has fewer than 10 general tags,
+ * run inference and merge results into the sidecar.
+ *
+ * Designed to be called fire-and-forget from /save and /refresh —
+ * never throws, returns a small status object that callers can ignore.
+ * On success, also publishes an `image-saved` SSE so the grid card
+ * refreshes with the new tag count.
+ *
+ * The merged tags run through canonicalize() so the user's aliases /
+ * hierarchy / blacklist apply to Camie's output too. Without this,
+ * a tag Camie emits that's blacklisted by the user would slip through.
+ */
+const CAMIE_META_EXCLUDE = [
+  /^bad_(\w+_)?id$/,   // bad_id, bad_pixiv_id, bad_twitter_id, ...
+];
+async function maybeCamieTagId(id) {
+  if (!serverConfig.camieEnabled) return { tagged: false, reason: 'disabled' };
+
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+  let json;
+  try {
+    json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+  } catch {
+    return { tagged: false, reason: 'sidecar-missing' };
+  }
+
+  if (json.mediaType === 'video') {
+    return { tagged: false, reason: 'video' };
+  }
+
+  // Threshold: count general tags only. Post-canonicalize, because
+  // that's the form they're stored in.
+  const generalCount = Array.isArray(json.tags?.general) ? json.tags.general.length : 0;
+  if (generalCount >= 10) {
+    return { tagged: false, reason: 'enough-tags', generalCount };
+  }
+
+  // Locate the image file (extension search, same pattern as elsewhere).
+  const baseName = jsonPath.replace(/\.json$/, '');
+  let imagePath = null;
+  for (const ext of ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']) {
+    const candidate = baseName + ext;
+    try { await fs.access(candidate); imagePath = candidate; break; } catch {}
+  }
+  if (!imagePath) return { tagged: false, reason: 'image-missing' };
+
+  // Inference. tagImages is the only thing that triggers a lazy spawn.
+  console.log(`[camie] processing ${id} with Camie v2...`);
+  const camieStart = Date.now();
+  let tagResults;
+  try {
+    [tagResults] = await camie.tagImages([imagePath]);
+  } catch (err) {
+    console.warn(`[camie] tag failed for ${id}: ${err.message}`);
+    return { tagged: false, reason: 'inference-failed' };
+  }
+  if (!tagResults || tagResults.length === 0) {
+    console.log(`[camie] done ${id}: model returned no tags`);
+    return { tagged: false, reason: 'no-tags' };
+  }
+
+  // Normalize the tags-by-category shape before merging.
+  if (!json.tags || typeof json.tags !== 'object' || Array.isArray(json.tags)) {
+    json.tags = {};
+  }
+  for (const cat of ['artist', 'character', 'copyright', 'general', 'meta']) {
+    if (!Array.isArray(json.tags[cat])) json.tags[cat] = [];
+  }
+
+  // Merge — general + meta only. The /tag request already asked for
+  // those categories, but a belt-and-suspenders filter here means a
+  // future change to defaults won't accidentally let other categories
+  // leak into the sidecar.
+  let added = 0;
+  for (const t of tagResults) {
+    const cat = t.category;
+    if (cat !== 'general' && cat !== 'meta') continue;
+    // Drop Camie's "bad_*_id" meta tags — danbooru source-link flags
+    // (bad_id, bad_pixiv_id, bad_twitter_id, etc.) that are noise on
+    // a local archive. Extend CAMIE_META_EXCLUDE if more junk surfaces.
+    if (cat === 'meta' && CAMIE_META_EXCLUDE.some(re => re.test(t.tag))) continue;
+    if (!json.tags[cat].includes(t.tag)) {
+      json.tags[cat].push(t.tag);
+      added++;
+    }
+  }
+    if (added === 0) {
+    console.log(`[camie] done ${id}: no new tags after merge`);
+    return { tagged: false, reason: 'no-new-tags' };
+  }
+
+  // Run the merged set through canonicalize() so aliases/hierarchy/
+  // blacklist apply to Camie's output. Flatten → canonicalize → re-bucket.
+  const flat = [];
+  for (const [cat, list] of Object.entries(json.tags)) {
+    if (!Array.isArray(list)) continue;
+    for (const name of list) flat.push(cat === 'general' ? name : `${cat}:${name}`);
+  }
+  const canonical = canonicalize(flat);
+  const categorized = { artist: [], character: [], copyright: [], general: [], meta: [] };
+  for (const tag of canonical) {
+    const { category, name } = parseTagName(tag);
+    if (categorized[category]) categorized[category].push(name);
+    else categorized.general.push(tag);
+  }
+  json.tags = categorized;
+
+  try {
+    await fs.writeFile(jsonPath, JSON.stringify(json, null, 2));
+    await syncSidecarToDb(id);
+  } catch (err) {
+    console.error(`[camie] writeback failed for ${id}: ${err.message}`);
+    return { tagged: false, reason: 'writeback-failed' };
+  }
+
+  // Push the refreshed image so the grid card re-renders with new tags.
+  try {
+    const updated = await loadStagingImage(id);
+    if (updated) publishStagingEvent('image-saved', updated);
+  } catch {}
+
+  console.log(`[camie] done ${id}: +${added} tags (${Date.now() - camieStart}ms)`);
+  return { tagged: true, added };
+}
 
 // ============================================================
 // SSE — staging events
@@ -186,6 +322,9 @@ async function shutdown(reason = 'manual') {
     t.unref?.();
     httpServer.close(() => { clearTimeout(t); resolve(); });
   });
+
+  try { await camie.shutdown(); }
+  catch (err) { console.warn('[shutdown] camie shutdown failed:', err.message); }
 
   try {
     db.pragma('wal_checkpoint(TRUNCATE)');
@@ -2602,12 +2741,6 @@ const POST_WORKER = {
   running: false,
   scheduled: false,
   pendingScope: null, 
-  AI_POLL_TIMEOUT_MS: 5000,        // give up on AI tags after this
-  AI_POLL_INTERVAL_MS: 500,
-  AI_THRESHOLDS: {
-    general: 0.25,
-    meta: 0.25,
-  },
   POLITENESS_GAP_MS: 500,
   MAINTENANCE_INTERVAL_MS: 60 * 60 * 1000,
   get DUPLICATE_LOG() {
@@ -2651,55 +2784,6 @@ async function findPendingPosts(scopeIds = null, { skipFailed = false } = {}) {
   return pending;
 }
 
-/**
- * Block until AI tags for the asset appear, or timeout. Returns the
- * tag array (empty if timed out).
- */
-async function waitForAiTags(mediaAssetId) {
-  const deadline = Date.now() + POST_WORKER.AI_POLL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const tags = await booruUploader.getAiTags(mediaAssetId);
-    if (tags.length > 0) return tags;
-    await new Promise(r => setTimeout(r, POST_WORKER.AI_POLL_INTERVAL_MS));
-  }
-  return [];
-}
-
-/**
- * Merge AI tags into metadata.tags, in place.
- *
- * Rules:
- *   - Only `general` and `meta` are merged. character / copyright /
- *     artist / rating tags are dropped — handled manually in staging.
- *   - `rating:*` tags from autotagger (which it labels as general)
- *     are also dropped.
- *   - Per-category confidence threshold from AI_THRESHOLDS.
- */
-function mergeAiTags(metadata, aiTags) {
-  if (!metadata.tags || typeof metadata.tags !== 'object' || Array.isArray(metadata.tags)) {
-    metadata.tags = {};
-  }
-  for (const cat of ['general', 'meta']) {
-    if (!Array.isArray(metadata.tags[cat])) metadata.tags[cat] = [];
-  }
-
-  for (const aiTag of aiTags) {
-    const tag = aiTag.tag;
-    const score = aiTag.score ?? 0;
-    const category = aiTag.category || 'general';
-
-    if (category !== 'general' && category !== 'meta') continue;
-    if (tag.startsWith('rating:')) continue;
-
-    const threshold = POST_WORKER.AI_THRESHOLDS[category];
-    if (score < threshold) continue;
-
-    if (!metadata.tags[category].includes(tag)) {
-      metadata.tags[category].push(tag);
-    }
-  }
-}
-
 /** Pull a Danbooru post ID from a 422 duplicate error body. */
 function extractDuplicatePostId(body) {
   if (!body) return null;
@@ -2728,17 +2812,6 @@ async function logDuplicateFailure(filename, errBody) {
   } catch (err) {
     console.error('Failed to write duplicate log:', err.message);
   }
-}
-
-function countMetadataTags(metadata) {
-  if (!metadata?.tags) return 0;
-  if (Array.isArray(metadata.tags)) return metadata.tags.length;
-  if (typeof metadata.tags === 'object') {
-    return Object.values(metadata.tags)
-      .filter(Array.isArray)
-      .reduce((sum, list) => sum + list.length, 0);
-  }
-  return 0;
 }
 
 /** One worker tick — drains the pending queue once. */
@@ -2771,17 +2844,17 @@ async function postWorkerTick(scopeIds = null, { skipFailed = false } = {}) {
 
     const poolParents = new Map();
 
-    for (const { id, jsonPath, metadata } of pending) {
+    for (const { id, jsonPath, metadata: initialMetadata } of pending) {
+      let metadata = initialMetadata;
       try {
-        const existingTagCount = countMetadataTags(metadata);
-        if (existingTagCount < 20) {
-          const aiTags = await waitForAiTags(metadata.booruMediaAssetId);
-          if (aiTags.length === 0) {
-            console.warn(`[booru-postman] no AI tags for ${id} after ${POST_WORKER.AI_POLL_TIMEOUT_MS}ms; posting without`);
+        const generalCount = Array.isArray(metadata.tags?.general)
+          ? metadata.tags.general.length : 0;
+        if (generalCount < 10) {
+          const camieResult = await maybeCamieTagId(id);
+          if (camieResult.tagged) {
+            metadata = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+            console.log(`[booru-postman] camie added ${camieResult.added} tags to ${id} before post`);
           }
-          mergeAiTags(metadata, aiTags);
-        } else {
-          console.log(`[booru-postman] skipping AI tag wait for ${id} (${existingTagCount} tags already present)`);
         }
 
         const poolId = metadata.poolId;
@@ -3390,7 +3463,11 @@ app.post('/api/staging/save', saveUpload.single('image'), async (req, res) => {
     console.log(`[save] ${id} (${ms}ms, ${cleanTags ? Object.values(cleanTags).flat().length : 0} tags)`);
 
     res.json({ success: true, id, filename: imageFilename, image });
-
+    setImmediate(() => {
+      maybeCamieTagId(id).catch(err =>
+        console.error(`[camie] background tag for ${id}:`, err.message)
+      );
+    });
   } catch (err) {
     console.error('[save] error:', err);
     res.status(500).json({ error: err.message });
@@ -4048,6 +4125,11 @@ app.post('/api/staging/images/:id/refresh', async (req, res) => {
       changed,
       tagCount: canonicalTags.length,
     });
+    setImmediate(() => {
+      maybeCamieTagId(id).catch(err =>
+        console.error(`[camie] refresh tag for ${id}:`, err.message)
+      );
+    });
   } catch (err) {
     console.error('Error in /staging/images/:id/refresh:', err);
     res.status(500).json({ error: err.message });
@@ -4121,6 +4203,14 @@ app.post('/api/staging/images/refresh-batch', async (req, res) => {
       failed: results.filter(r => !r.success).length,
       changed: results.filter(r => r.success && r.changed).length,
       results,
+    });
+    setImmediate(() => {
+      for (const r of results) {
+        if (!r.success) continue;
+        maybeCamieTagId(r.id).catch(err =>
+          console.error(`[camie] batch refresh tag for ${r.id}:`, err.message)
+        );
+      }
     });
   } catch (err) {
     console.error('Error in /staging/images/refresh-batch:', err);
@@ -4247,6 +4337,13 @@ app.post('/api/staging/refresh-all', async (req, res) => {
       unchanged,
       errored,
       elapsed,
+    });
+    setImmediate(() => {
+      for (const id of ids) {
+        maybeCamieTagId(id).catch(err =>
+          console.error(`[camie] refresh-all tag for ${id}:`, err.message)
+        );
+      }
     });
   } catch (err) {
     console.error('Error in /staging/refresh-all:', err);
@@ -4401,7 +4498,9 @@ app.get('/api/stats', async (req, res) => {
 // GET /api/server-config — returns the current config snapshot.
 // Used by the extension's Settings page to populate fields on load.
 app.get('/api/server-config', (req, res) => {
-  res.json(serverConfigSnapshot());
+  const cfg = serverConfigSnapshot();
+  cfg.camieState = camie.getState();
+  res.json(cfg);
 });
 
 // PATCH /api/server-config — change one or more config values.
@@ -4420,10 +4519,11 @@ app.patch('/api/server-config', async (req, res) => {
   const body = req.body || {};
   const stagingPresent = typeof body.stagingDir === 'string';
   const mangaPresent = typeof body.mangaDir === 'string';
+  const camiePresent = typeof body.camieEnabled === 'boolean';
 
-  if (!stagingPresent && !mangaPresent) {
+  if (!stagingPresent && !mangaPresent && !camiePresent) {
     return res.status(400).json({
-      error: 'must provide stagingDir, mangaDir, or both',
+      error: 'must provide stagingDir, mangaDir, camieEnabled, or some combination',
       code: 'EINVAL',
     });
   }
@@ -4433,6 +4533,7 @@ app.patch('/api/server-config', async (req, res) => {
   let resolvedManga = null;
   let stagingChanged = false;
   let mangaChanged = false;
+  let camieChanged = camiePresent && body.camieEnabled !== serverConfig.camieEnabled;
 
   if (stagingPresent) {
     if (!body.stagingDir.trim()) {
@@ -4470,12 +4571,7 @@ app.patch('/api/server-config', async (req, res) => {
     }
   }
 
-  // Phase 2: apply. Both paths have already passed access checks, so
-  // failure here means disk-write failure inside persistConfig — rare,
-  // and setStagingDir/setMangaDir each roll back their own state on
-  // persist failure. A staging+manga change where staging persists
-  // and manga then fails leaves the staging change committed; we
-  // surface the error and include `partial` so the caller knows.
+  // Phase 2: apply.
   const changed = [];
 
   if (stagingChanged) {
@@ -4491,6 +4587,25 @@ app.patch('/api/server-config', async (req, res) => {
     try {
       setMangaDir(resolvedManga);
       changed.push('mangaDir');
+    } catch (err) {
+      return res.status(400).json({
+        error: err.message,
+        code: err.code || 'EINVAL',
+        partial: changed,
+      });
+    }
+  }
+
+  if (camieChanged) {
+    try {
+      setCamieEnabled(body.camieEnabled);
+      // Mirror to the live instance. setEnabled is serialized internally
+      // so concurrent toggles can't race; we fire-and-forget here since
+      // the response shouldn't wait on a potentially-long kill grace.
+      camie.setEnabled(body.camieEnabled).catch(err =>
+        console.error('[camie] mirror setEnabled failed:', err.message)
+      );
+      changed.push('camieEnabled');
     } catch (err) {
       return res.status(400).json({
         error: err.message,
@@ -4524,8 +4639,10 @@ app.patch('/api/server-config', async (req, res) => {
 
   // Phase 4: response.
   const responseBody = {
-    stagingDir: serverConfig.stagingDir,
-    mangaDir: serverConfig.mangaDir,
+    stagingDir:   serverConfig.stagingDir,
+    mangaDir:     serverConfig.mangaDir,
+    camieEnabled: serverConfig.camieEnabled,
+    camieState:   camie.getState(),
     changed,
     rescanId,
   };
@@ -4585,6 +4702,12 @@ async function startServer() {
   initDatabase();
   initMangaDedupSchema(db);
   
+  if (serverConfig.camieEnabled) {
+    camie.setEnabled(true).catch(err =>
+      console.error('[camie] initial setEnabled failed:', err.message)
+    );
+  }
+
   startWalCheckpointer();
 
   // Build in-memory tag cache from staging directory

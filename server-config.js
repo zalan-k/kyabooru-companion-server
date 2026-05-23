@@ -8,6 +8,13 @@
 //   mangaDir   — output dir for CBZ archives produced by the manga
 //                downloader. Not indexed.
 //
+// One feature flag:
+//   camieEnabled — whether the Camie v2 tagger feature is active.
+//                  Default true on first boot. Persisted in
+//                  server-config.json so it survives restart.
+//                  Has no env-var override (UI toggle is the only
+//                  user-facing path).
+//
 // Boot resolution order (per path):
 //   1. process.env.KYABOORU_STAGING_DIR / KYABOORU_MANGA_DIR
 //   2. server-config.json field
@@ -17,19 +24,13 @@
 // effective value is written back to server-config.json so the file
 // always reflects current state.
 //
-// Runtime mutations go through setStagingDir() / setMangaDir(). The
-// contract for both:
+// Runtime mutations go through setStagingDir() / setMangaDir() /
+// setCamieEnabled(). The contract for all three:
 //   - validate input
 //   - write the config file FIRST
 //   - mutate in-memory state only on successful write
 // Reasoning: if disk write fails, callers see a thrown error and
 // in-memory state stays consistent with disk state.
-//
-// All path constants in server.js (STAGING_DIR, TRASH_DIR, THUMBS_DIR)
-// are gone — every call site reads through serverConfig.{stagingDir,
-// trashDir, thumbsDir, mangaDir}, which are getters. Derived dirs
-// (.trash, .thumbs) are NOT cached: they're recomputed on each access
-// so a runtime PATCH naturally swaps them too.
 
 const fs = require('fs');
 const path = require('path');
@@ -38,11 +39,17 @@ const os = require('os');
 const CONFIG_PATH = path.join(__dirname, 'server-config.json');
 
 // Single source of truth for the in-memory values. Mutated only by
-// loadServerConfig() at boot and setStagingDir/setMangaDir at runtime.
+// loadServerConfig() at boot and the set* runtime mutators.
+//
+// All fields are nullable to make "not loaded yet" detectable. Note
+// that `camieEnabled: false` is a valid runtime value, so the getter
+// uses a strict `=== null` check rather than the truthy `!state.x`
+// pattern used by the string fields.
 const state = {
   stagingDir: null,
   mangaDir: null,
   bindHost: null,
+  camieEnabled: null,
 };
 
 const serverConfig = {
@@ -57,6 +64,13 @@ const serverConfig = {
   get bindHost() {
     if (!state.bindHost) { throw new Error('serverConfig.bindHost accessed before loadServerConfig()');}
     return state.bindHost;
+  },
+  get camieEnabled() {
+    // Strict null check — `false` is a valid loaded value.
+    if (state.camieEnabled === null) {
+      throw new Error('serverConfig.camieEnabled accessed before loadServerConfig()');
+    }
+    return state.camieEnabled;
   },
   get trashDir() {
     return path.join(this.stagingDir, '.trash');
@@ -86,7 +100,8 @@ function resolvePath({ envName, configValue, defaultPath }) {
  * else touches the filesystem.
  *
  * Returns:
- *   { stagingDir, mangaDir, sources: { staging, manga } }
+ *   { stagingDir, mangaDir, bindHost, camieEnabled,
+ *     sources: { staging, manga, bindHost, camieEnabled } }
  *
  * sources are 'env' | 'config' | 'default' — useful for the boot banner.
  *
@@ -123,6 +138,15 @@ function loadServerConfig() {
     bindHost = { value: parsed.bindHost.trim(), source: 'config' };
   }
 
+  // camieEnabled — no env var. Default true on a fresh install.
+  // Only accept `true`/`false`; anything else means the config was hand-
+  // edited badly and we should fall back to the default rather than
+  // silently coerce.
+  let camieEnabled = { value: true, source: 'default' };
+  if (typeof parsed.camieEnabled === 'boolean') {
+    camieEnabled = { value: parsed.camieEnabled, source: 'config' };
+  }
+
   // Auto-create both. First-boot defaults aren't user-typed, so silent
   // creation is the right behavior. Loud failure if either fails.
   for (const { value } of [staging, manga]) {
@@ -134,10 +158,11 @@ function loadServerConfig() {
     }
   }
 
-  state.stagingDir  = staging.value;
-  state.mangaDir    = manga.value;
-  state.bindHost    = bindHost.value;
-  
+  state.stagingDir   = staging.value;
+  state.mangaDir     = manga.value;
+  state.bindHost     = bindHost.value;
+  state.camieEnabled = camieEnabled.value;
+
   // Persist the resolved values so the file stays in sync. No-op if
   // it already matches.
   try {
@@ -147,13 +172,15 @@ function loadServerConfig() {
   }
 
   return {
-    stagingDir: state.stagingDir,
-    mangaDir:   state.mangaDir,
-    bindHost:   state.bindHost,
+    stagingDir:   state.stagingDir,
+    mangaDir:     state.mangaDir,
+    bindHost:     state.bindHost,
+    camieEnabled: state.camieEnabled,
     sources: {
-      staging:  staging.source,
-      manga:    manga.source,
-      bindHost: bindHost.source,
+      staging:      staging.source,
+      manga:        manga.source,
+      bindHost:     bindHost.source,
+      camieEnabled: camieEnabled.source,
     },
   };
 }
@@ -207,11 +234,44 @@ function setMangaDir(newPath) {
   return setPath('mangaDir', newPath);
 }
 
+/**
+ * Mutate camieEnabled. Same persist-first contract as the path setters.
+ *
+ * Throws Error with .code:
+ *   - 'EINVAL' input wasn't a boolean
+ *   - 'ENOOP'  value is unchanged
+ *   - other errors pass through from persistConfig (disk write failure)
+ */
+function setCamieEnabled(value) {
+  if (typeof value !== 'boolean') {
+    const err = new Error('camieEnabled must be a boolean');
+    err.code = 'EINVAL';
+    throw err;
+  }
+
+  if (value === state.camieEnabled) {
+    const err = new Error('camieEnabled is unchanged');
+    err.code = 'ENOOP';
+    throw err;
+  }
+
+  const previous = state.camieEnabled;
+  state.camieEnabled = value;
+  try {
+    persistConfig();
+  } catch (err) {
+    state.camieEnabled = previous;
+    throw err;
+  }
+  return value;
+}
+
 function persistConfig() {
   const payload = {
-    stagingDir: state.stagingDir,
-    mangaDir:   state.mangaDir,
-    bindHost:   state.bindHost,
+    stagingDir:   state.stagingDir,
+    mangaDir:     state.mangaDir,
+    bindHost:     state.bindHost,
+    camieEnabled: state.camieEnabled,
   };
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(payload, null, 2));
 }
@@ -221,9 +281,10 @@ function persistConfig() {
  */
 function snapshot() {
   return {
-    stagingDir: state.stagingDir,
-    mangaDir:   state.mangaDir,
-    bindHost:   state.bindHost,
+    stagingDir:   state.stagingDir,
+    mangaDir:     state.mangaDir,
+    bindHost:     state.bindHost,
+    camieEnabled: state.camieEnabled,
   };
 }
 
@@ -232,5 +293,6 @@ module.exports = {
   loadServerConfig,
   setStagingDir,
   setMangaDir,
+  setCamieEnabled,
   snapshot,
 };
