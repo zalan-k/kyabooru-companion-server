@@ -1,4 +1,5 @@
 // server.js - Tag Saver Local Server
+const os = require('os');
 const multer = require('multer');
 const express = require('express');
 const Database = require('better-sqlite3');
@@ -29,7 +30,7 @@ const mangaUpload = multer({
 });
 
 const booruUploader = new DanbooruUploader({
-  baseUrl:  process.env.DANBOORU_URL  || 'https://kyabooru.kyabatsunas.synology.me/',
+  baseUrl:  process.env.DANBOORU_URL  || 'http://192.168.0.205:3000' || 'https://kyabooru.kyabatsunas.synology.me/',
   username: process.env.DANBOORU_USER || 'kyabatsu',
   apiKey:   process.env.DANBOORU_KEY  || 'EPBFXUJbxWFsBPq2QZaf7TcY',
 });
@@ -42,7 +43,7 @@ const BOORU_PUBLIC_URL = (
   'https://kyabooru.kyabatsunas.synology.me/'
 ).replace(/\/$/, '');
 
-const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4'];
+const BOORU_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.webm', '.mp4','.mov','.webp'];
 
 // Singleton Camie wrapper. Module-level so /save, /refresh, and the
 // PATCH /api/server-config handler all share it.
@@ -63,69 +64,70 @@ const {
 const app = express();
 const PORT = 3737; // Fixed port for the extension to connect to
 
-/**
- * If Camie is enabled and the image has fewer than 10 general tags,
- * run inference and merge results into the sidecar.
- *
- * Designed to be called fire-and-forget from /save and /refresh —
- * never throws, returns a small status object that callers can ignore.
- * On success, also publishes an `image-saved` SSE so the grid card
- * refreshes with the new tag count.
- *
- * The merged tags run through canonicalize() so the user's aliases /
- * hierarchy / blacklist apply to Camie's output too. Without this,
- * a tag Camie emits that's blacklisted by the user would slip through.
- */
-const CAMIE_META_EXCLUDE = [
-  /^bad_(\w+_)?id$/,   // bad_id, bad_pixiv_id, bad_twitter_id, ...
-];
-async function maybeCamieTagId(id) {
-  if (!serverConfig.camieEnabled) return { tagged: false, reason: 'disabled' };
-
-  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
-  let json;
+async function isAnimatedWebp(filePath) {
+  if (!filePath.toLowerCase().endsWith('.webp')) return false;
   try {
-    json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+    const meta = await sharp(filePath).metadata();
+    return (meta.pages ?? 1) > 1;
   } catch {
-    return { tagged: false, reason: 'sidecar-missing' };
+    return false;
+  }
+}
+
+async function transcodeWebpToGif(webpPath) {
+  const out = path.join(
+    os.tmpdir(),
+    `kyabooru-${Date.now()}-${path.basename(webpPath, '.webp')}.gif`
+  );
+  console.log(`[sharp] converting ${path.basename(webpPath)} -> gif`);
+  await sharp(webpPath, { animated: true }).gif().toFile(out);
+  console.log(`[sharp] done: ${path.basename(out)}`);
+  return out;
+}
+
+function makeLimiter(n) {
+  let active = 0;
+  const queue = [];
+  const next = () => {
+    if (active >= n || queue.length === 0) return;
+    active++;
+    const { fn, resolve, reject } = queue.shift();
+    Promise.resolve()
+      .then(fn)
+      .then(v => { active--; resolve(v); next(); },
+            e => { active--; reject(e);  next(); });
+  };
+  return (fn) => new Promise((resolve, reject) => {
+    queue.push({ fn, resolve, reject });
+    next();
+  });
+}
+
+/**
+ * Merge Camie's tag output into a sidecar JSON, canonicalize, write,
+ * sync DB, emit SSE. The "post-inference" half of maybeCamieTagId,
+ * factored out so the bulk driver can call it directly without going
+ * through the per-image eligibility/inference path.
+ *
+ * Caller is responsible for:
+ *   - deciding eligibility (skip if image already has enough tags)
+ *   - locating the image file on disk
+ *   - running inference and getting the tagResult
+ * This function only handles the writeback path. Never throws.
+ *
+ * Returns:
+ *   { applied: true,  added }      new tags merged
+ *   { applied: false, reason }     nothing to merge or merge produced no change
+ */
+async function applyCamieResultToSidecar(id, jsonPath, json, tagResult) {
+  if (!tagResult || tagResult.length === 0) {
+    return { applied: false, reason: 'no-tags' };
   }
 
-  if (json.mediaType === 'video') {
-    return { tagged: false, reason: 'video' };
-  }
-
-  // Threshold: count general tags only. Post-canonicalize, because
-  // that's the form they're stored in.
-  const generalCount = Array.isArray(json.tags?.general) ? json.tags.general.length : 0;
-  if (generalCount >= 10) {
-    return { tagged: false, reason: 'enough-tags', generalCount };
-  }
-
-  // Locate the image file (extension search, same pattern as elsewhere).
-  const baseName = jsonPath.replace(/\.json$/, '');
-  let imagePath = null;
-  for (const ext of ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']) {
-    const candidate = baseName + ext;
-    try { await fs.access(candidate); imagePath = candidate; break; } catch {}
-  }
-  if (!imagePath) return { tagged: false, reason: 'image-missing' };
-
-  // Inference. tagImages is the only thing that triggers a lazy spawn.
-  console.log(`[camie] processing ${id} with Camie v2...`);
-  const camieStart = Date.now();
-  let tagResults;
-  try {
-    [tagResults] = await camie.tagImages([imagePath]);
-  } catch (err) {
-    console.warn(`[camie] tag failed for ${id}: ${err.message}`);
-    return { tagged: false, reason: 'inference-failed' };
-  }
-  if (!tagResults || tagResults.length === 0) {
-    console.log(`[camie] done ${id}: model returned no tags`);
-    return { tagged: false, reason: 'no-tags' };
-  }
-
-  // Normalize the tags-by-category shape before merging.
+  // Normalize categorized shape on the existing JSON.
+  // We still need every category here because the existing sidecar may
+  // already have artist/character/copyright/meta tags from other sources
+  // (image hash meta, manual tags, etc.) — we just won't add to them.
   if (!json.tags || typeof json.tags !== 'object' || Array.isArray(json.tags)) {
     json.tags = {};
   }
@@ -133,30 +135,18 @@ async function maybeCamieTagId(id) {
     if (!Array.isArray(json.tags[cat])) json.tags[cat] = [];
   }
 
-  // Merge — general + meta only. The /tag request already asked for
-  // those categories, but a belt-and-suspenders filter here means a
-  // future change to defaults won't accidentally let other categories
-  // leak into the sidecar.
+  // Merge — general only. Camie's meta tags are noise.
   let added = 0;
-  for (const t of tagResults) {
-    const cat = t.category;
-    if (cat !== 'general' && cat !== 'meta') continue;
-    // Drop Camie's "bad_*_id" meta tags — danbooru source-link flags
-    // (bad_id, bad_pixiv_id, bad_twitter_id, etc.) that are noise on
-    // a local archive. Extend CAMIE_META_EXCLUDE if more junk surfaces.
-    if (cat === 'meta' && CAMIE_META_EXCLUDE.some(re => re.test(t.tag))) continue;
-    if (!json.tags[cat].includes(t.tag)) {
-      json.tags[cat].push(t.tag);
+  for (const t of tagResult) {
+    if (t.category !== 'general') continue;
+    if (!json.tags.general.includes(t.tag)) {
+      json.tags.general.push(t.tag);
       added++;
     }
   }
-    if (added === 0) {
-    console.log(`[camie] done ${id}: no new tags after merge`);
-    return { tagged: false, reason: 'no-new-tags' };
-  }
+  if (added === 0) return { applied: false, reason: 'no-new-tags' };
 
-  // Run the merged set through canonicalize() so aliases/hierarchy/
-  // blacklist apply to Camie's output. Flatten → canonicalize → re-bucket.
+  // Canonicalize through aliases/hierarchy/blacklist
   const flat = [];
   for (const [cat, list] of Object.entries(json.tags)) {
     if (!Array.isArray(list)) continue;
@@ -176,17 +166,236 @@ async function maybeCamieTagId(id) {
     await syncSidecarToDb(id);
   } catch (err) {
     console.error(`[camie] writeback failed for ${id}: ${err.message}`);
-    return { tagged: false, reason: 'writeback-failed' };
+    return { applied: false, reason: 'writeback-failed' };
   }
 
-  // Push the refreshed image so the grid card re-renders with new tags.
   try {
     const updated = await loadStagingImage(id);
     if (updated) publishStagingEvent('image-saved', updated);
   } catch {}
 
-  console.log(`[camie] done ${id}: +${added} tags (${Date.now() - camieStart}ms)`);
-  return { tagged: true, added };
+  return { applied: true, added };
+}
+
+/**
+ * If Camie is enabled and the image has fewer than 10 general tags,
+ * run inference and merge results into the sidecar.
+ *
+ * Designed to be called fire-and-forget from /save and /refresh —
+ * never throws, returns a small status object that callers can ignore.
+ * On success, also publishes an `image-saved` SSE so the grid card
+ * refreshes with the new tag count.
+ *
+ * The merged tags run through canonicalize() so the user's aliases /
+ * hierarchy / blacklist apply to Camie's output too. Without this,
+ * a tag Camie emits that's blacklisted by the user would slip through.
+ */
+async function maybeCamieTagId(id) {
+  if (!serverConfig.camieEnabled) {
+    return { applied: false, reason: 'disabled' };
+  }
+
+  const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+  let json;
+  try {
+    json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+  } catch {
+    return { applied: false, reason: 'sidecar-missing' };
+  }
+
+  if (json.mediaType === 'video') {
+    return { applied: false, reason: 'video' };
+  }
+
+  const generalCount = Array.isArray(json.tags?.general) ? json.tags.general.length : 0;
+  if (generalCount >= 10) {
+    return { applied: false, reason: 'enough-tags', generalCount };
+  }
+
+  // Locate the image file
+  const baseName = jsonPath.replace(/\.json$/, '');
+  let imagePath = null;
+  for (const ext of ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']) {
+    const candidate = baseName + ext;
+    try { await fs.access(candidate); imagePath = candidate; break; } catch {}
+  }
+  if (!imagePath) return { applied: false, reason: 'image-missing' };
+
+  console.log(`[camie] processing ${id} with Camie v2...`);
+  const t0 = Date.now();
+  let tagResults;
+  try {
+    [tagResults] = await camie.tagImages([imagePath]);
+  } catch (err) {
+    console.warn(`[camie] tag failed for ${id}: ${err.message}`);
+    return { applied: false, reason: 'inference-failed' };
+  }
+
+  const result = await applyCamieResultToSidecar(id, jsonPath, json, tagResults);
+  if (result.applied) {
+    console.log(`[camie] done ${id}: +${result.added} tags (${Date.now() - t0}ms)`);
+  } else {
+    console.log(`[camie] done ${id}: ${result.reason}`);
+  }
+  return result;
+}
+
+// ============================================================
+// CAMIE BULK — global "fill in missing tags" sweep
+// ============================================================
+
+const CAMIE_BULK = {
+  running: false,
+  runId: null,
+  abort: false,
+};
+
+/**
+ * Run a bulk Camie pass against every staging image with <10 general
+ * tags. Singleton; rejects concurrent invocations. Reports progress
+ * via SSE on /api/staging/events:
+ *
+ *   camie-bulk-start    { runId, total }
+ *   camie-bulk-progress { runId, processed, total, succeeded, skipped, errored }
+ *   camie-bulk-done     { runId, total, processed, succeeded, skipped, errored, elapsed, aborted }
+ *   camie-bulk-error    { runId, error }
+ *
+ * Cancel by flipping CAMIE_BULK.abort via the cancel route — abort
+ * takes effect at the next chunk boundary, not mid-chunk.
+ */
+async function runCamieBulk({ chunkSize = 16 } = {}) {
+  if (CAMIE_BULK.running) throw new Error('Bulk run already in progress');
+  if (!serverConfig.camieEnabled) throw new Error('Camie is disabled');
+
+  const runId = `camie_${Date.now()}`;
+  CAMIE_BULK.running = true;
+  CAMIE_BULK.runId = runId;
+  CAMIE_BULK.abort = false;
+
+  // Eligibility — single scan via the junction. If you later add a
+  // staging_images.general_tag_count column, replace this with a
+  // simple WHERE general_tag_count < 10 query.
+  const generalCounts = db.prepare(`
+    SELECT sit.image_id, COUNT(*) AS general_count
+    FROM staging_image_tags sit
+    JOIN staging_tags st ON st.id = sit.tag_id
+    WHERE st.category = 'general'
+    GROUP BY sit.image_id
+  `).all();
+  const countMap = new Map(generalCounts.map(r => [r.image_id, r.general_count]));
+
+  const allImages = db.prepare(`
+    SELECT id FROM staging_images
+    WHERE media_type = 'image'
+    ORDER BY timestamp DESC
+  `).all();
+
+  const candidates = allImages
+    .filter(r => (countMap.get(r.id) ?? 0) < 10)
+    .map(r => r.id);
+
+  const total = candidates.length;
+  const t0 = Date.now();
+  let processed = 0, succeeded = 0, skipped = 0, errored = 0;
+
+  publishStagingEvent('camie-bulk-start', { runId, total });
+  console.log(`[camie-bulk] ${runId} starting: ${total} candidates, chunkSize=${chunkSize}`);
+
+  try {
+    for (let i = 0; i < candidates.length; i += chunkSize) {
+      if (CAMIE_BULK.abort) {
+        console.log(`[camie-bulk] ${runId} aborted by user`);
+        break;
+      }
+      if (!serverConfig.camieEnabled) {
+        console.log(`[camie-bulk] ${runId} aborted: Camie disabled mid-run`);
+        break;
+      }
+
+      const chunkIds = candidates.slice(i, i + chunkSize);
+      const r = await processCamieBulkChunk(chunkIds);
+
+      processed += chunkIds.length;
+      succeeded += r.succeeded;
+      skipped   += r.skipped;
+      errored   += r.errored;
+
+      publishStagingEvent('camie-bulk-progress', {
+        runId, processed, total, succeeded, skipped, errored,
+      });
+    }
+
+    publishStagingEvent('camie-bulk-done', {
+      runId, total, processed, succeeded, skipped, errored,
+      elapsed: Date.now() - t0,
+      aborted: CAMIE_BULK.abort,
+    });
+    console.log(
+      `[camie-bulk] ${runId} done in ${((Date.now() - t0) / 1000).toFixed(1)}s — ` +
+      `${processed}/${total} ok=${succeeded} skip=${skipped} err=${errored}`
+    );
+  } catch (err) {
+    console.error(`[camie-bulk] ${runId} fatal:`, err);
+    publishStagingEvent('camie-bulk-error', { runId, error: err.message });
+  } finally {
+    CAMIE_BULK.running = false;
+    CAMIE_BULK.runId = null;
+    CAMIE_BULK.abort = false;
+  }
+}
+
+async function processCamieBulkChunk(ids) {
+  const jobs = [];
+  let skipped = 0;
+
+  for (const id of ids) {
+    const jsonPath = path.join(serverConfig.stagingDir, `${id}.json`);
+    let json;
+    try {
+      json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+    } catch {
+      skipped++;
+      continue;
+    }
+    const baseName = jsonPath.replace(/\.json$/, '');
+    let imagePath = null;
+    for (const ext of ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']) {
+      const candidate = baseName + ext;
+      try { await fs.access(candidate); imagePath = candidate; break; } catch {}
+    }
+    if (!imagePath) { skipped++; continue; }
+    jobs.push({ id, jsonPath, imagePath, json });
+  }
+
+  if (jobs.length === 0) return { succeeded: 0, skipped, errored: 0 };
+
+  // One Camie call for the chunk — Python internally shreds into
+  // GPU_BATCH_SIZE sub-batches.
+  let results;
+  try {
+    results = await camie.tagImages(jobs.map(j => j.imagePath));
+  } catch (err) {
+    console.warn(`[camie-bulk] inference failed for chunk: ${err.message}`);
+    return { succeeded: 0, skipped, errored: jobs.length };
+  }
+
+  // Per-image writeback. Sequential because better-sqlite3 is sync —
+  // any "parallel" awaits here would only fight over the mutex.
+  let succeeded = 0, errored = 0;
+  for (let i = 0; i < jobs.length; i++) {
+    try {
+      const r = await applyCamieResultToSidecar(
+        jobs[i].id, jobs[i].jsonPath, jobs[i].json, results[i] || []
+      );
+      if (r.applied) succeeded++;
+      else skipped++;
+    } catch (err) {
+      console.error(`[camie-bulk] writeback failed for ${jobs[i].id}: ${err.message}`);
+      errored++;
+    }
+  }
+
+  return { succeeded, skipped, errored };
 }
 
 // ============================================================
@@ -2664,71 +2873,87 @@ function validateBooruUploadBody(body) {
  * Posting is the worker's job. This function returns once all uploads
  * are done.
  */
+
 async function runBooruUploads({ ids, all, force }, onProgress) {
   const emit = onProgress || (() => {});
-  const results = [];
-  let completed = 0;
-
   const targetIds = await resolveBooruTargetIds({ ids, all, force });
   const total = targetIds.length;
-
   emit({ phase: 'start', total });
-
   if (total === 0) {
     emit({ phase: 'done', total: 0, succeeded: 0, failed: 0 });
     return { total: 0, succeeded: 0, failed: 0, results: [] };
   }
-
-  for (const id of targetIds) {
-    let result;
+  // Preload all jobs up front (cheap — just reads sidecars).
+  const jobs = await Promise.all(targetIds.map(async (id) => {
     try {
       const job = await loadBooruJob(id);
-
-      if (job.metadata.booruUploadId && !force) {
-        result = {
-          id, success: true,
-          uploadAssetId: job.metadata.booruUploadId,
-          alreadyUploaded: true,
-        };
-      } else {
+      return { id, job, error: null };
+    } catch (err) {
+      return { id, job: null, error: err };
+    }
+  }));
+  // Partition into already-uploaded (skip) and to-upload.
+  const alreadyDone = [];
+  const toUpload = [];
+  for (const j of jobs) {
+    if (j.error) { toUpload.push(j); continue; }
+    if (j.job.metadata.booruUploadId && !force) {
+      alreadyDone.push(j);
+    } else {
+      toUpload.push(j);
+    }
+  }
+  const results = [];
+  let completed = 0;
+  // Emit already-done items immediately.
+  for (const { id, job } of alreadyDone) {
+    const result = {
+      id, success: true,
+      uploadAssetId: job.metadata.booruUploadId,
+      alreadyUploaded: true,
+    };
+    results.push(result);
+    completed++;
+    emit({ phase: 'item', completed, total, result });
+  }
+  // Fan out the actual uploads.
+  const limit = makeLimiter(BOORU_UPLOAD_CONCURRENCY);  // see config below
+  await Promise.all(toUpload.map(({ id, job, error }) => limit(async () => {
+    let result;
+    if (error) {
+      result = { id, success: false, error: error.message };
+    } else {
+      let uploadSourcePath = job.imagePath;
+      let tempMp4 = null;
+      try {
+        if (await isAnimatedWebp(job.imagePath)) {
+          console.log(`[booru-upload] animated webp ${id}: transcoding to gif`);
+          tempMp4 = await transcodeWebpToGif(job.imagePath);
+          uploadSourcePath = tempMp4;
+        }
         const { uploadAssetId, mediaAssetId } =
-          await booruUploader.uploadFileOnly(job.imagePath);
-
+          await booruUploader.uploadFileOnly(uploadSourcePath);
         job.metadata.booruUploadId = uploadAssetId;
         job.metadata.booruMediaAssetId = mediaAssetId;
         await fs.writeFile(job.jsonPath, JSON.stringify(job.metadata, null, 2));
         await syncSidecarToDb(id);
-
+        result = { id, success: true, uploadAssetId, mediaAssetId, alreadyUploaded: false };
+      } catch (err) {
         result = {
-          id, success: true,
-          uploadAssetId,
-          mediaAssetId,
-          alreadyUploaded: false,
+          id, success: false, error: err.message,
+          phase: err.phase, status: err.status, body: err.body,
         };
+      } finally {
+        if (tempMp4) await fs.unlink(tempMp4).catch(() => {});
       }
-    } catch (err) {
-      result = {
-        id, success: false,
-        error: err.message,
-        phase: err.phase,
-        status: err.status,
-        body: err.body,
-      };
     }
-
     results.push(result);
     completed++;
     emit({ phase: 'item', completed, total, result });
-
-    if (completed < total) {
-      await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-
+  })));
   const succeeded = results.filter(r => r.success).length;
   const failed = results.filter(r => !r.success).length;
   emit({ phase: 'done', total, succeeded, failed });
-
   return { total, succeeded, failed, results };
 }
 
@@ -2741,13 +2966,17 @@ const POST_WORKER = {
   running: false,
   scheduled: false,
   pendingScope: null, 
-  POLITENESS_GAP_MS: 500,
+  POLITENESS_GAP_MS: 1000,
   MAINTENANCE_INTERVAL_MS: 60 * 60 * 1000,
   get DUPLICATE_LOG() {
     return path.join(serverConfig.stagingDir, 'duplicate-failures.log');
   },
 };
 
+const BOORU_UPLOAD_CONCURRENCY = parseInt(process.env.BOORU_UPLOAD_CONCURRENCY || '2', 10);
+const BOORU_POOL_CONCURRENCY   = parseInt(process.env.BOORU_POOL_CONCURRENCY   || '3', 10);
+const BOORU_POST_CONCURRENCY   = parseInt(process.env.BOORU_POST_CONCURRENCY   || '2', 10);
+const BOORU_CAMIE_CONCURRENCY  = parseInt(process.env.BOORU_CAMIE_CONCURRENCY  || '2', 10);
 /**
  * Find sidecars that have been uploaded but not yet posted.
  * Sorted so pool members are grouped and ordered by poolIndex.
@@ -2814,7 +3043,6 @@ async function logDuplicateFailure(filename, errBody) {
   }
 }
 
-/** One worker tick — drains the pending queue once. */
 async function postWorkerTick(scopeIds = null, { skipFailed = false } = {}) {
   if (POST_WORKER.running) {
     POST_WORKER.scheduled = true;
@@ -2842,70 +3070,83 @@ async function postWorkerTick(scopeIds = null, { skipFailed = false } = {}) {
       (scopeIds ? ` (scoped: ${scopeIds.length})` : ' (all)')
     );
 
-    const poolParents = new Map();
+    // ---- Phase A: Camie pre-pass (parallel, bounded) ----
+    // Lifts ML inference out of the post-creation critical path. On GPU
+    // this is fast anyway; the win is that the post phase no longer
+    // serializes on inference time.
+    if (serverConfig.camieEnabled) {
+      const needsCamie = pending.filter(p => {
+        const n = Array.isArray(p.metadata.tags?.general)
+          ? p.metadata.tags.general.length : 0;
+        return n < 10 && p.metadata.mediaType !== 'video';
+      });
 
-    for (const { id, jsonPath, metadata: initialMetadata } of pending) {
-      let metadata = initialMetadata;
-      try {
-        const generalCount = Array.isArray(metadata.tags?.general)
-          ? metadata.tags.general.length : 0;
-        if (generalCount < 10) {
-          const camieResult = await maybeCamieTagId(id);
-          if (camieResult.tagged) {
-            metadata = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-            console.log(`[booru-postman] camie added ${camieResult.added} tags to ${id} before post`);
+      if (needsCamie.length > 0) {
+        console.log(`[booru-postman] camie pre-pass: ${needsCamie.length} items`);
+        const camieLimit = makeLimiter(BOORU_CAMIE_CONCURRENCY);
+        await Promise.all(needsCamie.map(p => camieLimit(async () => {
+          try {
+            const result = await maybeCamieTagId(p.id);
+            if (result.applied) {
+              // Reload metadata so the post step sees Camie's tags.
+              p.metadata = JSON.parse(await fs.readFile(p.jsonPath, 'utf8'));
+              console.log(
+                `[booru-postman] camie added ${result.added} tags to ${p.id} before post`
+              );
+            }
+          } catch (err) {
+            console.warn(`[booru-postman] camie pre-pass failed for ${p.id}: ${err.message}`);
           }
-        }
-
-        const poolId = metadata.poolId;
-        let parentId = null;
-        if (poolId) {
-          if (poolParents.has(poolId)) {
-            parentId = poolParents.get(poolId);
-          } else {
-            const existing = await findExistingPoolParents(new Set([poolId]));
-            parentId = existing.get(poolId) ?? null;
-          }
-        }
-
-        let postId;
-        try {
-          postId = await booruUploader.createPostFromAsset(
-            metadata.booruUploadId, metadata, parentId
-          );
-        } catch (err) {
-          // 422 with an extractable existing post id means Danbooru already has
-          // this image. Adopt the existing post id rather than forcing a second
-          // copy via bypass_dnp.
-          const existingId = err.phase === 'post' && err.status === 422
-            ? extractDuplicatePostId(err.body)
-            : null;
-
-          if (existingId !== null) {
-            postId = existingId;
-            console.log(`[booru-postman] adopting existing post #${existingId} for ${id} (already on booru)`);
-          } else {
-            throw err;
-          }
-        }
-
-        if (postId === null) { console.log(`[booru-postman] duplicate-skipped for ${id} (200 OK)`); }
-        metadata.booruPostId = postId;
-        await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-        await syncSidecarToDb(id);
-        if (poolId && !poolParents.has(poolId)) poolParents.set(poolId, postId);
-      } catch (err) {
-        console.error(`[booru-postman] failed to post ${id}:`, err.message);
-        try {
-          metadata.booruPostId = -1;
-          await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
-          await syncSidecarToDb(id);
-        } catch (writeErr) {
-          console.error(`[booru-postman] failed to mark ${id} as errored:`, writeErr.message);
-        }
+        })));
       }
-      await new Promise(r => setTimeout(r, POST_WORKER.POLITENESS_GAP_MS));
     }
+
+    // ---- Phase B: group by pool, resolve parents, fan out children ----
+    const byPool = new Map(); // poolId | '__nopool__' -> items[]
+    for (const p of pending) {
+      const key = p.metadata.poolId || '__nopool__';
+      if (!byPool.has(key)) byPool.set(key, []);
+      byPool.get(key).push(p);
+    }
+
+    // Batch-resolve existing parents for every pool in one query
+    // instead of querying per-pool on demand inside the loop.
+    const poolIdsWithPool = [...byPool.keys()].filter(k => k !== '__nopool__');
+    const existingParents = poolIdsWithPool.length > 0
+      ? await findExistingPoolParents(new Set(poolIdsWithPool))
+      : new Map();
+
+    const poolLimit = makeLimiter(BOORU_POOL_CONCURRENCY);
+    const childLimit = makeLimiter(BOORU_POST_CONCURRENCY);
+
+    await Promise.all([...byPool.entries()].map(([poolId, items]) =>
+      poolLimit(async () => {
+        const isPool = poolId !== '__nopool__';
+        let parentId = isPool ? (existingParents.get(poolId) ?? null) : null;
+
+        // If this is a pool with no existing parent, the first item
+        // becomes the parent. Must complete before children can
+        // reference it. If it fails or duplicate-skips (returns null),
+        // children will be orphaned — matches the original behavior.
+        if (isPool && parentId === null && items.length > 0) {
+          const first = items.shift();
+          const newParentId = await postOne(first, null);
+          // Only use as parent if it's a real id (not null/duplicate-skip,
+          // not -1/error).
+          if (typeof newParentId === 'number' && newParentId > 0) {
+            parentId = newParentId;
+          }
+        }
+
+        // Remaining items are either standalone (no pool) or children
+        // whose parent is now known. Fan out.
+        if (items.length > 0) {
+          await Promise.all(items.map(item =>
+            childLimit(() => postOne(item, parentId))
+          ));
+        }
+      })
+    ));
 
     console.log('[booru-postman] work tick complete');
   } finally {
@@ -2924,6 +3165,53 @@ async function postWorkerTick(scopeIds = null, { skipFailed = false } = {}) {
 
 /** Public entry — coalesces concurrent calls. */
 function kickPostWorker(scopeIds = null, opts = {}) {
+  postWorkerTick(scopeIds, opts).catch(err =>
+    console.error('[booru-postman] tick threw:', err)
+  );
+}
+
+/**
+ * Post a single item. Returns the resulting post id (or null for
+ * duplicate-skip). Handles the 422-duplicate adoption logic and
+ * sidecar writeback. Errors caught and marked -1 in metadata.
+ */
+async function postOne(item, parentId) {
+  const { id, jsonPath, metadata } = item;
+  try {
+    let postId;
+    try {
+      postId = await booruUploader.createPostFromAsset(
+        metadata.booruUploadId, metadata, parentId
+      );
+    } catch (err) {
+      const existingId = err.phase === 'post' && err.status === 422
+        ? extractDuplicatePostId(err.body) : null;
+      if (existingId !== null) {
+        postId = existingId;
+        console.log(`[booru-postman] adopting existing post #${existingId} for ${id}`);
+      } else {
+        await logDuplicateFailure(id, err.body);
+        throw err;
+      }
+    }
+
+    metadata.booruPostId = postId;
+    await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+    await syncSidecarToDb(id);
+    return postId;
+  } catch (err) {
+    console.error(`[booru-postman] failed to post ${id}:`, err.message);
+    try {
+      metadata.booruPostId = -1;
+      await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2));
+      await syncSidecarToDb(id);
+    } catch {}
+    return null;
+  }
+}
+
+/** Public entry — coalesces concurrent calls. */
+function kickPostWorker(scopeIds = null, opts = {}) {
   postWorkerTick(scopeIds, opts).catch(err => console.error('[booru-postman] tick threw:', err));
 }
 
@@ -2933,6 +3221,41 @@ setInterval(() => kickPostWorker(null, { skipFailed: true }), POST_WORKER.MAINTE
 // ============================================================
 // CONFIG — suggester routes
 // ============================================================
+
+app.post('/api/staging/camie-bulk', (req, res) => {
+  if (CAMIE_BULK.running) {
+    return res.status(409).json({
+      error: 'Bulk run already in progress',
+      runId: CAMIE_BULK.runId,
+    });
+  }
+  if (!serverConfig.camieEnabled) {
+    return res.status(400).json({ error: 'Camie is disabled' });
+  }
+  const chunkSize = parseInt(req.body?.chunkSize, 10) || 16;
+  res.status(202).json({ status: 'started', chunkSize });
+
+  // Client should already be subscribed to /api/staging/events — the
+  // runId comes through the camie-bulk-start event.
+  runCamieBulk({ chunkSize }).catch(err =>
+    console.error('[camie-bulk] runner threw:', err)
+  );
+});
+
+app.post('/api/staging/camie-bulk/cancel', (req, res) => {
+  if (!CAMIE_BULK.running) {
+    return res.status(409).json({ error: 'No bulk run in progress' });
+  }
+  CAMIE_BULK.abort = true;
+  res.json({ status: 'cancelling', runId: CAMIE_BULK.runId });
+});
+
+app.get('/api/staging/camie-bulk/status', (req, res) => {
+  res.json({
+    running: CAMIE_BULK.running,
+    runId: CAMIE_BULK.runId,
+  });
+});
 
 // Trigger an analysis run.
 app.post('/api/config/suggestions/analyze', (req, res) => {

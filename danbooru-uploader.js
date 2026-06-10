@@ -21,15 +21,31 @@ const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bm
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * "2025-07-05T22:55:57.823Z" -> "2025_07_05_22_55_57"
- */
 function formatTimestamp(ts) {
   return ts
     .replace(/\.\d+Z?$/, '')
     .replace(/Z$/, '')
     .replace(/[-T:]/g, '_');
 }
+
+function makeLimiter(n) {
+  let active = 0;
+  const queue = [];
+  const next = () => {
+    if (active >= n || queue.length === 0) return;
+    active++;
+    const { fn, resolve, reject } = queue.shift();
+    Promise.resolve()
+      .then(fn)
+      .then(v => { active--; resolve(v); next(); },
+            e => { active--; reject(e);  next(); });
+  };
+  return (fn) => new Promise((resolve, reject) => {
+    queue.push({ fn, resolve, reject });
+    next();
+  });
+}
+
 
 class DanbooruUploadError extends Error {
   constructor(message, { phase, status, body, cause } = {}) {
@@ -130,62 +146,40 @@ class DanbooruUploader {
     return res.data;
   }
 
-  /**
-   * Step 2 of the upload. Throws DanbooruUploadError with phase='post' on failure.
-   */
-  async createPost(uploadData, metadata, parentId = null) {
-    console.log('Creating post with tags...');
-
-    let tagString = this.processTags(metadata);
-
-    if (metadata.imageHash) {
-      tagString += ` meta:${metadata.imageHash}`;
-    }
-    if (metadata.timestamp) {
-      tagString += ` meta:${formatTimestamp(metadata.timestamp)}`;
-    }
-
-    const postData = {
-      upload_media_asset_id: uploadData.upload_media_assets[0].id,
-      tag_string: tagString,
-      rating: this.determineRating(metadata),
-      source: metadata.sourceUrl || 'API Upload',
-    };
-
-    if (parentId) postData.parent_id = parentId;
-
-    let res;
-    try {
-      res = await this.client.post('/posts.json', postData, {
-        timeout: options.postTimeout || 3 * 60 * 1000,
-      });
-    } catch (err) {
-      throw new DanbooruUploadError(
-        `Post creation request failed: ${err.message}`,
-        {
-          phase: 'post',
-          status: err.response?.status,
-          body: err.response?.data,
-          cause: err,
+  async uploadFilesBatch(imagePaths, { concurrency = 4 } = {}) {
+    const limit = makeLimiter(concurrency);
+    return Promise.all(imagePaths.map(imagePath =>
+      limit(async () => {
+        try {
+          const { uploadAssetId, mediaAssetId } = await this.uploadFileOnly(imagePath);
+          return { imagePath, ok: true, uploadAssetId, mediaAssetId };
+        } catch (err) {
+          return {
+            imagePath, ok: false,
+            error: err.message, phase: err.phase, status: err.status, body: err.body,
+          };
         }
-      );
-    }
+      })
+    ));
+  }
 
-    if (res.status < 200 || res.status >= 300) {
-      throw new DanbooruUploadError(
-        `Post creation returned ${res.status}`,
-        { phase: 'post', status: res.status, body: res.data }
-      );
-    }
-
-    const postId = res.data?.id;
-    if (postId == null) {
-      console.log(`Post creation returned ${res.status} with no post id — duplicate-skip`);
-      return null;
-    }
-
-    console.log(`Post created successfully! Post ID: ${postId}`);
-    return postId;
+  async createPostsBatch(jobs, { concurrency = 4 } = {}) {
+    const limit = makeLimiter(concurrency);
+    return Promise.all(jobs.map(job =>
+      limit(async () => {
+        try {
+          const postId = await this.createPostFromAsset(
+            job.uploadAssetId, job.metadata, job.parentId ?? null, job.options ?? {}
+          );
+          return { ok: true, postId };
+        } catch (err) {
+          return {
+            ok: false,
+            error: err.message, phase: err.phase, status: err.status, body: err.body,
+          };
+        }
+      })
+    ));
   }
 
   /**

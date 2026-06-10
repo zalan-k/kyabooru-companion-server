@@ -1,54 +1,7 @@
 #!/usr/bin/env python3
-"""
-Camie v2 tagger sidecar — long-lived HTTP service.
-
-Lifecycle: parent process (Node, server.js) spawns us with no arguments.
-We pick a free port on 127.0.0.1, print "PORT=<n>" on our first stdout
-line as a handshake, then load the model and start serving. Once the
-lifespan startup completes, uvicorn binds the port, so a successful
-/health response is a definitive readiness signal.
-
-Model: Camais03/camie-tagger-v2 from HuggingFace, loaded as ONNX via
-onnxruntime. Two files needed (auto-downloaded on first run via
-huggingface_hub):
-  - camie-tagger-v2.onnx                    (789 MB, the weights)
-  - camie-tagger-v2-metadata.json           (7.7 MB, the tag dictionary)
-Both cache to ~/.cache/huggingface/hub by default — first cold start
-will be slow, subsequent boots are fast.
-
-Endpoints:
-  GET  /health
-       Returns {"status": "ready", "device": "cuda"|"cpu"}.
-
-  POST /tag
-       Body: {
-         "image_paths": ["abs/path/1.jpg", ...],
-         "threshold":   0.35,                  # optional, default 0.0
-         "categories":  ["general", "meta"]    # optional, default all
-       }
-       Returns: {
-         "results": [
-           [{"tag": "1girl", "score": 0.91, "category": "general"}, ...],
-           ...
-         ]
-       }
-       Order matches image_paths. Each list is already filtered by
-       threshold + categories. Filtering happens server-side to keep
-       network traffic small when the response would otherwise include
-       thousands of near-zero scores per image.
-
-Logs go to stderr — the Node wrapper prefixes them with [camie] before
-re-emitting. The first stdout line is the port handshake; everything
-else stays off stdout so the handshake stays unambiguous.
-"""
-
 from __future__ import annotations
 
-import asyncio
-import json
-import logging
-import socket
-import sys
+import asyncio, json, time, logging, socket, sys, uvicorn
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -58,11 +11,9 @@ import torchvision.transforms as transforms
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-import uvicorn
 
 from huggingface_hub import hf_hub_download
 import onnxruntime as ort
-
 
 # -----------------------------------------------------------------------------
 # Logging — stderr only. Stdout is reserved for the port handshake.
@@ -75,21 +26,21 @@ logging.basicConfig(
 )
 log = logging.getLogger('camie')
 
-
 # -----------------------------------------------------------------------------
 # Model state — populated by load_model() once at lifespan startup.
 # -----------------------------------------------------------------------------
 
-HF_REPO = "Camais03/camie-tagger-v2"
-ONNX_FILENAME = "camie-tagger-v2.onnx"
-METADATA_FILENAME = "camie-tagger-v2-metadata.json"
+GPU_BATCH_SIZE      = 8
+HF_REPO             = "Camais03/camie-tagger-v2"
+ONNX_FILENAME       = "camie-tagger-v2.onnx"
+METADATA_FILENAME   = "camie-tagger-v2-metadata.json"
 
-_session: Optional[ort.InferenceSession] = None
-_input_name: Optional[str] = None
-_idx_to_tag: dict[str, str] = {}
-_tag_to_category: dict[str, str] = {}
-_img_size: int = 512
-_device: str = "cpu"
+_session            : Optional[ort.InferenceSession] = None
+_input_name         : Optional[str] = None
+_idx_to_tag         : dict[str, str] = {}
+_tag_to_category    : dict[str, str] = {}
+_img_size           : int = 512
+_device             : str = "cpu"
 
 # ImageNet normalization. Constant — built once at module load.
 _IMAGENET_TRANSFORM = transforms.Compose([
@@ -151,7 +102,7 @@ def load_model() -> None:
     _input_name = _session.get_inputs()[0].name
 
     log.info("Camie v2 ready.")
-
+    _warmup()
 
 def unload_model() -> None:
     """Release the ONNX session and free VRAM. Called on shutdown."""
@@ -163,7 +114,6 @@ def unload_model() -> None:
     # to None lets Python's GC reclaim it. For CUDA users, the process
     # exit is what actually frees VRAM — which is fine, since we only
     # get here on shutdown.
-
 
 def _preprocess_image(image_path: str) -> np.ndarray:
     """Resize-with-aspect, pad with ImageNet mean color, ImageNet normalize.
@@ -195,10 +145,7 @@ def _preprocess_image(image_path: str) -> np.ndarray:
         tensor = _IMAGENET_TRANSFORM(canvas)  # (3, H, W)
         return tensor.unsqueeze(0).numpy()    # (1, 3, H, W)
 
-
 def _sigmoid(x: np.ndarray) -> np.ndarray:
-    """Numerically stable sigmoid. The logits returned by the model can
-    occasionally hit values where naive sigmoid would overflow."""
     out = np.empty_like(x)
     pos = x >= 0
     out[pos] = 1.0 / (1.0 + np.exp(-x[pos]))
@@ -206,56 +153,68 @@ def _sigmoid(x: np.ndarray) -> np.ndarray:
     out[~pos] = e / (1.0 + e)
     return out
 
-
-def tag_one(image_path: str, threshold: float = 0.0) -> list[dict]:
-    """Run inference on one image. Returns tags with score >= threshold.
-
-    The threshold filter happens here (not in the /tag handler) to avoid
-    allocating dicts for ~70k near-zero predictions per image.
-    """
+def _run_batch(image_paths: list[str], threshold: float) -> list[list[dict]]:
+    """One GPU batch. Caller chunks by GPU_BATCH_SIZE."""
     if _session is None:
         raise RuntimeError("Model not loaded")
+    if not image_paths:
+        return []
 
-    img_array = _preprocess_image(image_path)
-    outputs = _session.run(None, {_input_name: img_array})
+    # Preprocess each, strip batch dim, stack into (N, 3, H, W).
+    arrays = [_preprocess_image(p)[0] for p in image_paths]
+    batch_input = np.stack(arrays, axis=0)
 
-    # The model emits initial_predictions, refined_predictions,
-    # selected_candidates. Refined is the higher-quality output and what
-    # the reference script uses. Fall back to outputs[0] if only one is
-    # present (defensive).
+    outputs = _session.run(None, {_input_name: batch_input})
     logits = outputs[1] if len(outputs) >= 2 else outputs[0]
-    probs = _sigmoid(logits)[0]  # drop the batch dim
+    probs = _sigmoid(logits)  # (N, num_tags)
 
-    # Vectorize the threshold filter — much faster than a Python loop
-    # over 70k indices when threshold rejects almost everything.
-    indices = np.where(probs >= threshold)[0]
-    out = []
-    for idx in indices:
-        idx_str = str(int(idx))
-        tag_name = _idx_to_tag.get(idx_str)
-        if tag_name is None:
-            continue
-        out.append({
-            'tag': tag_name,
-            'score': float(probs[idx]),
-            'category': _tag_to_category.get(tag_name, 'general'),
-        })
-    return out
+    results = []
+    for row in probs:
+        indices = np.where(row >= threshold)[0]
+        per_image = []
+        for idx in indices:
+            idx_str = str(int(idx))
+            tag_name = _idx_to_tag.get(idx_str)
+            if tag_name is None:
+                continue
+            per_image.append({
+                'tag': tag_name,
+                'score': float(row[idx]),
+                'category': _tag_to_category.get(tag_name, 'general'),
+            })
+        results.append(per_image)
+    return results
 
 
 def tag_batch(image_paths: list[str], threshold: float = 0.0) -> list[list[dict]]:
-    """Sequential per-image inference.
+    """Batched inference. Internally chunks the request by GPU_BATCH_SIZE
+    so the caller can pass an arbitrary-sized list without worrying about
+    VRAM. Throughput improves over the old per-image loop because each
+    chunk amortizes one CUDA dispatch across N images.
 
-    Note on batching: the ONNX model probably supports a dynamic batch
-    dimension (it's a ViT with a standard input shape), and stacking N
-    images into one inference call would amortize GPU dispatch overhead.
-    We're not doing that here — the Node wrapper already coalesces HTTP
-    requests, and for the staging-manager workload (mostly trickle, with
-    occasional 30k backfills) sequential is good enough. If the backfill
-    becomes a perf bottleneck, this is the place to add true batching.
+    Caller (Node wrapper) sends one HTTP request per Node-level chunk;
+    we shred that further into GPU-sized sub-batches here.
     """
-    return [tag_one(p, threshold) for p in image_paths]
+    if not image_paths:
+        return []
+    out = []
+    for i in range(0, len(image_paths), GPU_BATCH_SIZE):
+        out.extend(_run_batch(image_paths[i:i + GPU_BATCH_SIZE], threshold))
+    return out
 
+
+def _warmup() -> None:
+    """Pre-trigger CUDA kernel JIT for the batch sizes we'll actually
+    use. First inference on a fresh session pays ~10s per shape; doing
+    it here means /health blocks for an extra ~15s on first boot but
+    every subsequent inference runs at steady state.
+    """
+    log.info("Warming up CUDA kernels...")
+    t0 = time.perf_counter()
+    for n in (1, GPU_BATCH_SIZE):
+        dummy = np.zeros((n, 3, _img_size, _img_size), dtype=np.float32)
+        _session.run(None, {_input_name: dummy})
+    log.info(f"Warmup complete in {time.perf_counter() - t0:.1f}s")
 
 # -----------------------------------------------------------------------------
 # FastAPI app
@@ -316,13 +275,6 @@ async def tag(req: TagRequest):
 # -----------------------------------------------------------------------------
 
 def pick_free_port() -> int:
-    """Ask the OS for a free TCP port on the loopback interface.
-
-    Small TOCTOU window between us closing this socket and uvicorn
-    binding it, but on loopback with no other process racing for ports
-    it's fine in practice — and the alternative (port scan + retry)
-    is uglier.
-    """
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('127.0.0.1', 0))
     port = s.getsockname()[1]

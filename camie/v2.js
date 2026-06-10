@@ -158,8 +158,8 @@ class CamieV2 extends EventEmitter {
    *
    * @param {string[]} paths   absolute image paths
    * @param {object}   opts
-   * @param {number}   opts.threshold   default 0.35
-   * @param {string[]} opts.categories  default ['general', 'meta']
+   * @param {number}   opts.threshold   default 0.5
+   * @param {string[]} opts.categories  default ['general']
    */
   async tagImages(paths, opts = {}) {
     if (!Array.isArray(paths) || paths.length === 0) return [];
@@ -177,8 +177,8 @@ class CamieV2 extends EventEmitter {
       this.queue.push({
         paths,
         opts: {
-          threshold: opts.threshold ?? 0.35,
-          categories: opts.categories ?? ['general', 'meta'],
+          threshold: opts.threshold ?? 0.5,
+          categories: opts.categories ?? ['general'],
         },
         resolve,
         reject,
