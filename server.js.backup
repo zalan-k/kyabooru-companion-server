@@ -2407,92 +2407,7 @@ function parseTagName(tag) {
 /**
  * Scan staging directory and return image metadata
  */
-/**
- * Escape LIKE wildcards in user input so underscores (extremely common in
- * tags, e.g. "tenma_maemi") and percent signs match literally instead of
- * acting as SQL LIKE wildcards. Paired with `ESCAPE '\'` in the query.
- * Backslash is escaped first so we don't double-escape our own escapes.
- */
-function escapeLike(s) {
-  return String(s).replace(/[\\%_]/g, ch => '\\' + ch);
-}
-
-/**
- * Parse the images-panel search box into SQL conditions over a
- * `staging_images si` row. Tokens are whitespace-separated and AND-ed
- * together (booru-style). Per-token grammar:
- *
- *   foo        image has a tag whose full "category:name" (or bare name
- *              for general tags) CONTAINS foo   (case-insensitive)
- *   =foo       exact full-tag match
- *   foo*       wildcard ( * -> % ), anchored to the whole tag string
- *   file:foo   filename / path CONTAINS foo
- *   -<any>     negate any of the above (image must NOT match)
- *
- * Returns { conditions: string[], params: any[] } to splice into a WHERE.
- * An empty / whitespace-only query returns no conditions.
- */
-function buildStagingSearchWhere(search) {
-  const conditions = [];
-  const params = [];
-  const raw = (search || '').trim();
-  if (!raw) return { conditions, params };
-
-  const tokens = raw.split(/\s+/).filter(Boolean);
-
-  // Full tag string as stored/displayed: general tags are bare, everything
-  // else is "category:name". Built inside the EXISTS subquery below.
-  const FULLTAG =
-    "(CASE WHEN st.category = 'general' THEN st.name " +
-    "ELSE st.category || ':' || st.name END)";
-
-  for (let tok of tokens) {
-    let negate = false;
-    if (tok.startsWith('-') && tok.length > 1) { negate = true; tok = tok.slice(1); }
-    if (!tok) continue;
-
-    // filename / path substring match
-    if (tok.toLowerCase().startsWith('file:')) {
-      const term = tok.slice(5);
-      if (!term) continue;
-      const pattern = '%' + escapeLike(term).toLowerCase() + '%';
-      const cond =
-        "(LOWER(COALESCE(si.filename, '')) LIKE ? ESCAPE '\\' " +
-        "OR LOWER(COALESCE(si.image_path, '')) LIKE ? ESCAPE '\\')";
-      conditions.push(negate ? `NOT ${cond}` : cond);
-      params.push(pattern, pattern);
-      continue;
-    }
-
-    // tag match — resolve the LIKE pattern from the modifiers
-    let exact = false;
-    if (tok.startsWith('=')) { exact = true; tok = tok.slice(1); }
-    if (!tok) continue;
-
-    let pattern;
-    if (tok.includes('*')) {
-      // wildcard: escape LIKE specials, then translate * -> % (anchored)
-      pattern = escapeLike(tok).replace(/\*/g, '%').toLowerCase();
-    } else if (exact) {
-      pattern = escapeLike(tok).toLowerCase();
-    } else {
-      pattern = '%' + escapeLike(tok).toLowerCase() + '%';
-    }
-
-    const match =
-      'EXISTS (SELECT 1 FROM staging_image_tags sit ' +
-      'JOIN staging_tags st ON st.id = sit.tag_id ' +
-      'WHERE sit.image_id = si.id ' +
-      `AND LOWER(${FULLTAG}) LIKE ? ESCAPE '\\')`;
-
-    conditions.push(negate ? `NOT ${match}` : match);
-    params.push(pattern);
-  }
-
-  return { conditions, params };
-}
-
-async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', uploadFilter = 'all', search = '') {
+async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', uploadFilter = 'all') {
   let orderBy;
   switch (sort) {
     case 'oldest':    orderBy = 'timestamp ASC, id ASC'; break;
@@ -2502,37 +2417,26 @@ async function scanStagingDirectory(limit = 50, offset = 0, sort = 'newest', upl
     default:          orderBy = 'timestamp DESC, id DESC'; break;
   }
 
-  // Build the WHERE from the upload-state filter + the search box. Both the
-  // COUNT and the SELECT use the same clause + params so hasMore/total stay
-  // consistent with what's actually returned. The table is aliased `si` so
-  // the search subqueries can reference si.id / si.filename unambiguously.
-  const conditions = [];
-  const params = [];
-
-  if      (uploadFilter === 'pending')  conditions.push('(si.booru_post_id IS NULL OR si.booru_post_id = -1)');
-  else if (uploadFilter === 'uploaded') conditions.push('si.booru_post_id >= 0');
-
-  const searchWhere = buildStagingSearchWhere(search);
-  conditions.push(...searchWhere.conditions);
-  params.push(...searchWhere.params);
-
-  const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+  // Upload-state filter — applied to both COUNT and SELECT so hasMore stays correct.
+  let whereClause = '';
+  if      (uploadFilter === 'pending')  whereClause = 'WHERE booru_post_id IS NULL OR booru_post_id = -1';
+  else if (uploadFilter === 'uploaded') whereClause = 'WHERE booru_post_id >= 0';
 
   const total = db.prepare(
-    `SELECT COUNT(*) AS c FROM staging_images si ${whereClause}`
-  ).get(...params).c;
+    `SELECT COUNT(*) AS c FROM staging_images ${whereClause}`
+  ).get().c;
 
   const rows = db.prepare(`
     SELECT
-      si.id, si.json_path, si.image_path, si.filename, si.source_url, si.image_hash,
-      si.media_type, si.pool_id, si.pool_index,
-      si.booru_upload_id, si.booru_media_asset_id, si.booru_post_id,
-      si.timestamp, si.tag_count
-    FROM staging_images si
+      id, json_path, image_path, filename, source_url, image_hash,
+      media_type, pool_id, pool_index,
+      booru_upload_id, booru_media_asset_id, booru_post_id,
+      timestamp, tag_count
+    FROM staging_images
     ${whereClause}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
-  `).all(...params, limit, offset);
+  `).all(limit, offset);
 
   if (rows.length === 0) {
     return { images: [], hasMore: false, total };
@@ -4285,9 +4189,8 @@ app.get('/api/staging/images', async (req, res) => {
     const validUploads = ['all', 'pending', 'uploaded'];
     const sort         = validSorts.includes(req.query.sort)     ? req.query.sort     : 'newest';
     const uploadFilter = validUploads.includes(req.query.upload) ? req.query.upload   : 'all';
-    const search       = (req.query.search || '').toString().slice(0, 500);
 
-    const result = await scanStagingDirectory(limit, offset, sort, uploadFilter, search);
+    const result = await scanStagingDirectory(limit, offset, sort, uploadFilter);
     res.json(result);
   } catch (error) {
     console.error('Error listing staging images:', error);
