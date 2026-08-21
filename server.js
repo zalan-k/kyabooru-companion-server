@@ -565,7 +565,7 @@ function initDatabase() {
     PRAGMA temp_store = MEMORY;
     PRAGMA mmap_size = 268435456;
 
-    PRAGMA wal_autocheckpoint = 0;
+    PRAGMA wal_autocheckpoint = 1000;
     PRAGMA checkpoint_fullfsync = 0;
     PRAGMA count_changes = 0;
 
@@ -2441,17 +2441,29 @@ function buildStagingSearchWhere(search) {
   const tokens = raw.split(/\s+/).filter(Boolean);
 
   // Full tag string as stored/displayed: general tags are bare, everything
-  // else is "category:name". Built inside the EXISTS subquery below.
+  // else is "category:name".
   const FULLTAG =
     "(CASE WHEN st.category = 'general' THEN st.name " +
     "ELSE st.category || ':' || st.name END)";
+
+  // The fix: resolve each token to concrete staging_tags ids ONCE, up front,
+  // by matching against the small staging_tags table (one row per UNIQUE tag).
+  // The old code ran a correlated `EXISTS (... LOWER(FULLTAG) LIKE '%term%')`
+  // for every staging_images row — a leading-wildcard LIKE that can't use an
+  // index, evaluated per (image, tag) pair. That is what made search O(images
+  // x tags) and froze the whole (synchronous, single-threaded) server. Moving
+  // the fuzzy match onto the tag table and then filtering images through the
+  // indexed staging_image_tags(tag_id) join turns it into index seeks.
+  const tagIdStmt = db.prepare(
+    `SELECT st.id FROM staging_tags st WHERE LOWER(${FULLTAG}) LIKE ? ESCAPE '\\'`
+  );
 
   for (let tok of tokens) {
     let negate = false;
     if (tok.startsWith('-') && tok.length > 1) { negate = true; tok = tok.slice(1); }
     if (!tok) continue;
 
-    // filename / path substring match
+    // filename / path substring match — cheap columns on staging_images itself
     if (tok.toLowerCase().startsWith('file:')) {
       const term = tok.slice(5);
       if (!term) continue;
@@ -2464,7 +2476,7 @@ function buildStagingSearchWhere(search) {
       continue;
     }
 
-    // tag match — resolve the LIKE pattern from the modifiers
+    // tag match — resolve the LIKE pattern from the modifiers (unchanged grammar)
     let exact = false;
     if (tok.startsWith('=')) { exact = true; tok = tok.slice(1); }
     if (!tok) continue;
@@ -2479,14 +2491,27 @@ function buildStagingSearchWhere(search) {
       pattern = '%' + escapeLike(tok).toLowerCase() + '%';
     }
 
+    // Resolve to concrete tag ids. These are integers from our own DB, so it's
+    // safe to inline them into the IN list (and it dodges SQLite's bound-param
+    // ceiling when a wildcard matches many tags).
+    const ids = tagIdStmt.all(pattern).map(r => r.id);
+
+    if (ids.length === 0) {
+      // Nothing matches this token:
+      //   positive -> image can never match  -> constant false
+      //   negated  -> "must NOT have a tag that doesn't exist" -> constant true
+      conditions.push(negate ? '1' : '0');
+      continue;
+    }
+
+    // Membership test over the indexed join (idx_staging_image_tags_tag on
+    // tag_id; PK (image_id, tag_id)). Index seek per image, not a LIKE scan.
+    const inList = ids.join(',');
     const match =
-      'EXISTS (SELECT 1 FROM staging_image_tags sit ' +
-      'JOIN staging_tags st ON st.id = sit.tag_id ' +
-      'WHERE sit.image_id = si.id ' +
-      `AND LOWER(${FULLTAG}) LIKE ? ESCAPE '\\')`;
+      `EXISTS (SELECT 1 FROM staging_image_tags sit ` +
+      `WHERE sit.image_id = si.id AND sit.tag_id IN (${inList}))`;
 
     conditions.push(negate ? `NOT ${match}` : match);
-    params.push(pattern);
   }
 
   return { conditions, params };
